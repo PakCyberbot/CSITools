@@ -1,0 +1,317 @@
+#!/bin/bash
+# CSI Linix API setup script
+# This script will walk you through setting up your API keys into some of the tools used for online investigations.
+
+#define choices
+wipeme="Wipe out API keys"
+opt99="Exit"
+binaryedge="Binary Edge"
+Bing="Bing"
+builtwith="Builtwith"
+censysio="Censysio ID an Secret Key"
+Flickr="Flickr"
+fullcontact="Full Contact (paid)"
+Github="GitHub"
+opt4="Google"
+hashes="Hashes"
+hades="The Hades Project"
+hibp="Have I Been Pwned"
+opt6="Hunter.io"
+opt7="Intelex"
+opt8="IP Info DB"
+ipstack="IP Stack"
+namechk="NameCHK"
+opt9="Opencnam"
+opt10="Pipl (Paid)"
+opt11="Security Trails"
+opt12="Shodan"
+opt13="Spyse"
+opt14="Tower Data"
+opt15="Twitter"
+opt16="Virus Total"
+whatcms="What CMS"
+wigle="Wigle API Name & Token"
+
+
+Menu () {
+
+source /opt/csitools/APIKeys
+
+apikeymenu=$(zenity --list  --title "CSI Linux API Management Tool" --text "What do you want to do?" --width=1075 --height=750 --radiolist --column "Pick" --column "Option" --column "API Keys" --column "Supported Tools" \
+	FALSE "$wipeme" "" "Recon-NG, theHarvester, OSINT-Search" \
+	TRUE "$opt99" "Exit" "Exit the API Management Application" \
+	FALSE "$binaryedge" "$binaryedge_api" "Recon-NG, Spiderfoot" \
+	FALSE "$Bing" "$bing_api" "Recon-NG, Spiderfoot" \
+	FALSE "$builtwith" "$builtwith_api" "Spiderfoot" \
+	FALSE "$censysio" "$censysio_id:$censysio_secret" "OSINT-Search, Recon-NG, Spiderfoot" \
+	FALSE "$Flickr" "$flickr_api" "Recon-NG" \
+	FALSE "$fullcontact" "$fullcontact_api" "OSINT-Search, Recon-NG, Spiderfoot" \
+	FALSE "$Github" "$github_api" "Recon-NG, theHarvester" \
+	FALSE "$opt4" "$google_api" "Recon-NG, Spiderfoot" \
+	FALSE "$hashes" "$hashes_api" "Recon-NG" \
+	FALSE "$hibp" "$hibp_api" "Recon-NG, Spiderfoot" \
+	FALSE "$opt6" "$hunter_api" "theHarvester, Spiderfoot" \
+	FALSE "$opt7" "$intelxkey_api" "theHarvester, Spiderfoot" \
+	FALSE "$opt8" "$ipinfodb_api" "Recon-NG, Spiderfoot" \
+	FALSE "$ipstack" "$ipstack_api" "Recon-NG, Spiderfoot" \
+	FALSE "$namechk" "$namechk_api" "Recon-NG" \
+	FALSE "$opt9" "$opencnam_api" "" \
+	FALSE "$opt10" "$pipl_api" "OSINT-Search" \
+	FALSE "$opt11" "$securitytrails_api" "Recon-NG, Spiderfoot" \
+	FALSE "$opt12" "$shodan_api" "OSINT-Search, Recon-NG, Spiderfoot, theHarvester" \
+	FALSE "$opt13" "$spyse_api" "theHarvester" \
+	FALSE "$opt14" "$towerdata_api" "OSINT-Search" \
+	FALSE "$opt15" "$twitter_api:$twitter_secret" "CSI UserSearch, Recon-NG" \
+	FALSE "$opt16" "$virustotal_api" "Recon-NG, Spiderfoot" \
+	FALSE "$whatcms" "$whatcms_api" "OSINT-Search, Spiderfoot" \
+	FALSE "$wigle" "$wigleapiname:$wigleapitoken" "OSINT-Search, Spiderfoot" 2> >(grep -v 'GtkDialog' >&2)) || exit
+echo "Pick your option to run..."
+case $apikeymenu in
+
+	$wipeme ) #Wipe Keys
+		clear		
+		zenity --info --text="Import \"/opt/csitools/Spiderfoot.cfg\" into the Spiderfoot to remove keys." --width=600
+		printf "Import \"/opt/csitools/Spiderfoot.cfg\" into the Spiderfoot to remove keys."
+		
+		cp /opt/theHarvester/api-backup /opt/theHarvester/api-keys.yaml
+		cp /opt/OSINT-Search/osintSearch.config.back /opt/OSINT-Search/osintSearch.config.ini 
+		cp /opt/csitools/SpiderFoot.empty /opt/csitools/SpiderFoot.cfg
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='binaryedge_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='bing_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='builtwith_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='censysio_id';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='censysio_secret';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='flickr_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='fullcontact_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='github_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='google_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='hashes_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='hibp_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='ipinfodb_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='ipstack_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='namechk_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='shodan_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='twitter_api';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='twitter_secret';"
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '' WHERE name='virustotal_api';"
+		Menu
+	;;
+
+	$binaryedge ) #binaryedge_api
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='binaryedge_api';"
+		sed -i "s/binaryedge_api=''/binaryedge_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/sfp_binaryedge:binaryedge_api_key=/sfp_binaryedge:binaryedge_api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$Bing ) #Bing
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/bingkey/$key/g" /opt/theHarvester/api-keys.yaml
+		sed -i "s/bing_api=''/bing_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/sfp_bingsearch:api_key=/sfp_bingsearch:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='bing_api';"
+		Menu
+	;;
+	
+	$builtwith ) #BuiltWith
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='builtwith_api';"
+		sed -i "s/builtwith_api=''/builtwith_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/sfp_builtwith:api_key=/sfp_builtwith:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$censysio ) #censysio_id
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your censysio id key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/censysid/$key/g" /opt/OSINT-Search/osintSearch.config.ini
+		sed -i "s/censysio_id=''/censysio_id='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/sfp_censys:censys_api_key_uid=/sfp_censys:censys_api_key_uid=$key/g" /opt/csitools/SpiderFoot.cfg
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='censysio_id';"
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your censysio Secret key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/censyssecret/$key/g" /opt/OSINT-Search/osintSearch.config.ini
+		sed -i "s/censysio_secret=''/censysio_secret='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/sfp_censys:censys_api_key_secret=/sfp_censys:censys_api_key_secret=$key/g" /opt/csitools/SpiderFoot.cfg
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='censysio_secret';"
+		Menu
+	;;
+
+
+	$Flickr ) #Flickr
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/flickr_api=''/flickr_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='flickr_api';"
+		Menu
+	;;
+
+	$fullcontact  ) #fullcontact_api
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/fullcontact_api=''/fullcontact_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/sfp_fullcontact:api_key=/sfp_fullcontact:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='fullcontact_api';"
+		Menu
+	;;
+
+	$Github ) #Github
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/github_api=''/github_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/githubkey/$key/g" /opt/theHarvester/api-keys.yaml
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='github_api';"
+		Menu
+	;;
+
+	$opt4 ) #Google
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/google_api=''/google_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/sfp_googlesearch:api_key=/sfp_googlesearch:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='google_api';"
+		Menu
+	;;
+
+	$hashes ) #hashes
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/hashes_api=''/hashes_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='hashes_api';"
+		Menu
+	;;
+
+	$hades ) #TheHadesProject
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/hades_api=''/hades_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/atiikey=''/atiikey='$key'/g" /opt/csitools/ProjectHades
+		Menu
+	;;
+
+	$hibp ) #hibp
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/hibp_api=''/hibp_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='hibp_api';"
+		Menu
+	;;
+
+	$opt6 ) #Hunter.io
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/hunter_api=''/hunter_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/hunterkey/$key/g" /opt/theHarvester/api-keys.yaml
+		sed -i "s/sfp_hunter:api_key=/sfp_hunter:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$opt7 ) #intelx
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/intelxkey_api=''/intelxkey_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/intelxkey/$key/g" /opt/theHarvester/api-keys.yaml
+		Menu
+	;;
+
+	$opt8 ) #IPInfoDB
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/ipinfodb_api=''/ipinfodb_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='ipinfodb_api';"
+		sed -i "s/sfp_ipinfo:api_key=/sfp_ipinfo:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$ipstack ) #ipstack_api
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/ipstack_api=''/ipstack_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='ipstack_api';"
+		sed -i "s/sfp_ipstack:api_key=/sfp_ipstack:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$namechk ) #namechk_api
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/namechk_api=''/namechk_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='namechk_api';"
+		Menu
+	;;
+
+	$opt9 ) #Opencnam
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/opencnam_api=''/opencnam_api='$key'/g" /opt/csitools/APIKeys
+		Menu
+	;;
+
+	$opt10 ) #Pipl
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/pipl_api=''/pipl_api='$key'/g" /opt/csitools/APIKeys
+		Menu
+	;;
+
+	$opt11 ) #securitytrails
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/securitytrails_api=''/securitytrails_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/securitytrailskey/$key/g" /opt/theHarvester/api-keys.yaml
+		sed -i "s/sfp_securitytrails:api_key=/sfp_securitytrails:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$opt12 ) #Shodan
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/shodan_api=''/shodan_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/shodankey/$key/g" /opt/theHarvester/api-keys.yaml
+		sed -i "s/shodankey/$key/g" /opt/OSINT-Search/osintSearch.config.ini
+		sed -i "s/sfp_shodan:api_key=/sfp_shodan:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='shodan_api';"
+		Menu
+	;;
+
+	$opt13 ) #spyse
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/spyse_api=''/spyse_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/spysekey/$key/g" /opt/theHarvester/api-keys.yaml
+		Menu
+	;;
+
+	$opt14 ) #TowerData
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/towerdata_api=''/towerdata_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/towerdatakey/$key/g" /opt/OSINT-Search/osintSearch.config.ini
+		Menu
+	;;
+
+	$opt15 ) #Twitter
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/twitter_api=''/twitter_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='twitter_api';"
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/twitter_secret=''/twitter_secret='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='twitter_secret';"
+		Menu
+	;;
+
+	$opt16 ) #Virustotal
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/virustotal_api=''/virustotal_api='$key'/g" /opt/csitools/APIKeys
+		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='virustotal_api';"
+		sed -i "s/sfp_virustotal:api_key=/sfp_virustotal:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$whatcms ) #whatcms
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/whatcms_api=''/whatcms_api='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/whatcmskey/$key/g" /opt/OSINT-Search/osintSearch.config.ini
+		sed -i "s/sfp_whatcms:api_key=/sfp_whatcms:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
+		Menu
+	;;
+
+	$wigle ) #Wigle
+		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		sed -i "s/wigleapiname=''/wigleapiname='$key'/g" /opt/csitools/APIKeys
+		sed -i "s/wigleapitoken=''/wigleapitoken='$key'/g" /opt/csitools/APIKeys
+		Menu
+	;;
+
+	$opt99 ) #Exit
+		clear
+		exit
+	;;
+
+		
+	*) echo $apikeymenu; echo "$0: unknown option specified: "; Menu >&2
+esac
+}
+
+Menu

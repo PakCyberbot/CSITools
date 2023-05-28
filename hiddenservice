@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# CSI Linux Tor Hidden Service installer / launcher
+# bash ./hiddenservice
+
+key=$(zenity --password --title "Enter you SUDO password to start the install if your new hidden service." --text "Enter you SUDO password." --width 400)
+
+if ! which apache2 > /dev/null; then
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt purge proxychains4
+	echo $key | sudo -S apt install proxychains
+	echo $key | sudo -S apt install apache2
+	echo $key | sudo -S service apache2 start
+	google-chrome-stable http://127.0.0.1 &
+fi
+
+killall google-chrome-stable
+echo $key | sudo -S service apache2 start
+echo $key | sudo -S sed -i 's|#HiddenServiceDir\ /var/lib/tor/hidden_service/|HiddenServiceDir\ /var/lib/tor/hidden_service/|g' /etc/tor/torrc
+echo $key | sudo -S sed -i 's|#HiddenServicePort\ 80\ 127.0.0.1:80|HiddenServicePort\ 80\ 127.0.0.1:80|g' /etc/tor/torrc
+echo "Restarting Tor"
+echo $key | sudo -S service tor restart || echo "Tor service failed to start"
+sleep 8
+onionaddress=$(sudo cat /var/lib/tor/hidden_service/hostname)
+echo ""
+echo "Your Tor Hidden Service address is: $onionaddress" | tee ~/Cases/TorHiddenServiceAddy.txt
+echo ""
+gedit ~/Cases/TorHiddenServiceAddy.txt &
+
+proxychains google-chrome-stable --incognito $onionaddress &
+
+sleep 10

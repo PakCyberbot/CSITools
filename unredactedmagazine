@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+## https://unredactedmagazine.com magazine downloader v2021.9.25.1
+## 
+##tools@csilinux.com - Jeremy Martin - infosecwriter
+
+loopme=1
+i=0
+mkdir ~/Documents/Unredacted\ Magazine
+
+
+clear
+echo "Unredacted Magazine from Michael Bazzel and Intel Techniques"
+echo "Welcome to a different way to ingest all of your Privacy, Security, and OSINT news and opinion. We created this magazine for several reasons. While there are numerous online portals which discuss these topics, they all require constant engagement if you don't want to miss anything. You also need to navigate through a never-ending pile of trolls, spam, and misinformation. We aim to correct that. This monthly free magazine in PDF format allows you to digest all of the information on your time in polished written form. Possessing your own PDF copy of each issue allows offline reading without distraction. We want to return to intentional vetted content instead of a race to provide immediate scare tactics and uninformed opinions. Most important, we rely on the community for all content. You will never hear from only one voice. Each issue provides commentary from many viewpoints. We are excited to present this new option in a traditional format without any fees to the readers."
+
+
+
+while [ $loopme -gt 0 ]
+do
+	echo $loopme
+	echo "Base numer $i"
+	((i++))
+	echo "Issue number $i"
+	if [[ $i -lt 10 ]]
+	then
+		issue=00$i
+	elif [[ $i -lt 100 ]] && [[ $i -ge 9 ]]
+	then
+		issue=0$i
+	fi
+	wget --user-agent='Mozilla/4.0' -O ~/Documents/Unredacted\ Magazine/issue$issue.pdf https://unredactedmagazine.com/issues/$issue.pdf || loopme=0; clear
+	wget --user-agent='Mozilla/4.0' -O ~/Documents/Unredacted\ Magazine/Personal\ Data\ Removal\ Workbook\ -\ Michael\ Bazzel.pdf https://inteltechniques.com/data/workbook.pdf
+done
+
+rm ~/Documents/Unredacted\ Magazine/issue$issue.pdf
+thunar ~/Documents/Unredacted\ Magazine/

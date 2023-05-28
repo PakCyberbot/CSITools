@@ -1,0 +1,9 @@
+#!/bin/bash
+
+FILES=/var/log/*
+for f in $FILES
+do
+  echo "Clearing $f ..."
+  # take action on each file. $f store current file name
+  cat /dev/null > $f
+done

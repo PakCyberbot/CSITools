@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+##CSI ISO Builder System by CSI Linux v2021.2.14.5
+##tools@csilinux.com - Jeremy Martin - infosecwriter
+
+key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+echo $key | sudo -S wget csilinux.com/downloads/csitoolsupdate.sh -O - | sh
+echo $key | sudo -S apt update || exit
+echo $key | sudo -S apt install xorriso -y
+cd /tmp
+git clone https://github.com/Tomas-M/linux-live.git
+cd /tmp/linux-live/
+sed -i 's/LIVEKITNAME="linux"/LIVEKITNAME="CSI-Linux-2021.1"/' config
+sed -i 's/VMLINUZ=\/vmlinuz/VMLINUZ=\/boot\/vmlinuz/' config
+sed -i 's/$MKISOFS -o/xorrisofs -iso-level 3 -o/' build
+sed -i 's/export PATH\=.:.\/tools:..\/tools:\/usr\/sbin:\/usr\/bin:\/sbin:\/bin:\//export PATH\=.:.\/tools:..\/tools:\/opt\/csitools\/:\/usr\/sbin:\/usr\/bin:\/sbin:\/bin:\//' build
+sed -i 's/read DIR/DIR=\/\$LIVEKITNAME\/boot/' /tmp/linux-live/tools/isolinux.bin.update
+cp -rf /opt/csitools/Images/bootlogo.png /tmp/linux-live/bootfiles/bootlogo.png
+cd /tmp/linux-live/tools/
+echo $key | sudo -S ./isolinux.bin.update
+cd /tmp/linux-live/
+echo $key | sudo -S ./build
+cd /tmp
+echo $key | sudo -S ./gen_CSI-Linux-2021.1_iso.sh
+#echo $key | sudo -S apt install qemu-kvm libvirt-daemon-system libvirt-clients bridge-utils virtinst virt-manager -y
+cp /tmp/*.iso ~/Desktop/
+

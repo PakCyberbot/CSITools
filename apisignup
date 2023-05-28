@@ -1,0 +1,18 @@
+#!/bin/sh
+# CSI Linix API setup script
+# This simple script just sends you the websites that you need to signup for API keys for.
+cd /opt/csitools
+FILE="./apisignup.txt"
+# read $FILE using the file descriptors
+echo "Reading the contents of the API list.  Please wait while we open the links in  Google Chrome..."
+exec 3<&0
+exec 0<$FILE
+while read line
+do
+	echo $line
+	sleep 1
+	screen -d -m firefox $line
+done
+exec 0<&3
+
+

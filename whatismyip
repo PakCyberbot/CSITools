@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+red=`tput setaf 1`
+reset=`tput sgr0`
+
+printf "\nVerifying Tor address and Surface Web address...\n\n" 
+
+
+direct2=$(curl -s ipinfo.io/ip)
+echo "Internet facing IP address is $direct2...  Pulling more information..."
+direct=$(curl -s icanhazip.com)
+direct_ISP=$(whob $direct | grep AS-Org-Name: | awk -F  ":" '{print $2}')
+direct_city=$(whob $direct | grep City: | awk -F  ":" '{print $2}')
+direct_country=$(whob $direct | grep Country: | awk -F  ":" '{print $2}')
+echo "Phase 1 complete..."
+
+# socks5=$(curl -sx socks5://localhost:9050 icanhazip.com)
+# socks5_ISP=$(whob $socks5 | grep AS-Org-Name: | awk -F  ":" '{print $2}')
+# socks5_city=$(whob $socks5 | grep City: | awk -F  ":" '{print $2}')
+# socks5_country=$(whob $socks5 | grep Country: | awk -F  ":" '{print $2}')
+# echo "Phase 2 complete..."
+
+torsocks5=$(torsocks curl ipinfo.io/ip)
+torsocks5_ISP=$(whob $torsocks5 | grep AS-Org-Name: | awk -F  ":" '{print $2}')
+torsocks5_city=$(whob $torsocks5 | grep City: | awk -F  ":" '{print $2}')
+torsocks5_country=$(whob $torsocks5 | grep Country: | awk -F  ":" '{print $2}')
+echo "Phase 3 complete..."
+
+clear
+
+printf "\nHere is a list of your External IP Addresses:\n\n" 
+echo "${red}Direct IP:          ${reset}" $direct "("$direct_city:$direct_country" )"
+echo "                     - $direct_ISP"
+# echo ""
+# echo "${red}SOCKS5 (Tor) IP: ${reset}" $socks5 "("$socks5_city:$socks5_country" )"
+# echo "                  - $socks5_ISP"
+echo ""
+echo "${red}TorSOCKS5 (Tor) IP: ${reset}" $torsocks5 "("$torsocks5_city:$torsocks5_country" )"
+echo "                     - $torsocks5_ISP"
+
+sleep 10
+
+exit

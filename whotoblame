@@ -1,0 +1,8 @@
+#!/bin/bash
+# Check your boot up speed.  If it's slow, you can find out who to blame
+# csi@csi : whotoblame
+
+systemd-analyze plot > /tmp/boot_analysis.svg
+ristretto /tmp/boot_analysis.svg  &
+exit
+

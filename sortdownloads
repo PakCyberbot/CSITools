@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# sort the download folder usin rsync
+# inspired by ClusterF
+
+# filetypes to sort
+arr=( *.doc *.docx *.ebook *.log *.md *.msg *.odt *.org *.pages *.pdf *.rtf *.rst *.tex *.txt *.wpd *.wps ) 
+arr1=( *.aac *.aiff *.ape *.au *.flac *.gsm *.it *.m3u *.m4a *.mid *.mod *.mp3 *.mpa *.pls *.ra *.s3m *.sid *.wav *.wma *.xm *.ogg )
+arr2=( *.jpg *.JPG *.jpeg *.png *.xfc *.bmp *.gif )
+
+
+# change this to use it to sort any folder you like
+dls () {
+        cd $HOME/Downloads
+}
+
+# how to process and where to put the various filetypes
+docs () {
+        rsync -bvh --progress --remove-source-files ${arr[@]} $HOME/Documents 2> /dev/null
+}
+
+music () {
+        rsync -bvh --progress --remove-source-files -b ${arr1[@]} $HOME/Music 2> /dev/null
+}
+
+iso () {
+		rsync -bvh --progress --remove-source-files -b *.iso $HOME/Downloads/iso 2> /dev/null
+}
+
+mc () {
+		rsync -bvh --progress --remove-source-files -b *.jar $HOME/.minecraft/mods 2> /dev/null
+}
+
+pix () {
+		rsync -bvh --progress --remove-source-files -b ${arr2[@]} $HOME/Pictures/unsorted/ 2> /dev/null
+}
+
+deb () {
+		rsync -bvh --progress --remove-source-files -b *.deb $HOME/bin 2> /dev/null
+}
+
+# insert funky yad dialog for selecting filetypes here
+
+# ..and go
+if      dls; then
+        docs
+        music
+        iso
+        mc
+        pix
+        deb
+fi
+        exit 1
+

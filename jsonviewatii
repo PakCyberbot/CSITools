@@ -1,0 +1,164 @@
+#! /usr/bin/python3
+# -*- coding: utf-8 -*-
+
+# CSI Linux JSON ATII json parser
+# Copyright (C) 2022 the CSI Linux Team
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#
+
+"""A simple ATII json parser
+Author: Jeremy Martin
+Date: 6/01/2022
+"""
+
+import sys
+import getopt
+import json
+
+# Opening JSON file
+f = open(sys.argv[1],'r')
+
+# returns JSON object as
+# a dictionary
+data = json.load(f)
+
+# Iterating through the json 
+for i in data['data']:
+	#print(i)
+	try:
+		meta=str(i['meta'])
+	except:
+		meta=""
+	try:
+		indexed=str(i['meta']['indexed'])
+	except:
+		indexed=""
+	try:
+		is_new=str(i['meta']['is_new'])
+	except:
+		is_new=""
+	try:
+		onion=str(i['onion'])
+	except:
+		onion=""
+	try:
+		categories=str(i['categories'])
+	except:
+		categories=""
+	try:
+		csam=str(i['categories']['csam'])
+	except:
+		csam=""
+	try:
+		images=str(i['images'])
+	except:
+		images=""
+	try:
+		results=str(i['results'])
+	except:
+		results=""
+	try:
+		header=str(i['results']['headers'])
+	except:
+		header=""
+	try:
+		last_checked=str(i['results']['last_checked'])
+	except:
+		last_checked=""
+	try:
+		links=str(i['results']['links'])
+	except:
+		links=""
+	try:
+		status=str(i['results']['status'])
+	except:
+		status=""
+	try:
+		server=str(i['results']['headers']['server'])
+	except:
+		server=""
+	try:
+		description=str(i['results']['description'])
+	except:
+		description=""
+	try:
+		favicon=str(i['results']['favicon'])
+	except:
+		favicon="Not Found"
+	try:
+		bitcoin=str(i['results']['bitcoin'])
+	except:
+		bitcoin="Not Found"
+	try:
+		dogecoin=str(i['results']['dogecoin'])
+	except:
+		dogecoin="Not Found"
+	try:
+		ethereum=str(i['results']['ethereum'])
+	except:
+		ethereum="Not Found"
+	try:
+		monero=str(i['results']['monero'])
+	except:
+		monero=""
+	try:
+		title=str(i['results']['title'])
+	except:
+		title=""
+	try:
+		url=str(i['results']['url'])
+	except:
+		url=""
+	try: 
+		contentwords=str(i['results']['content']['words'])
+	except:
+		contentwords=""
+	try: 
+		appearances=str(i['appearances'])
+	except:
+		appearances=""
+	try: 
+		selector=str(i['selector'])
+	except:
+		selector=""
+	try: 
+		infotype=str(i['type'])
+	except:
+		infotype=""
+	try: 
+		first_seen=str(i['first_seen'])
+	except:
+		first_seen=""
+	
+	
+	print("Title=" + title)
+	print("Newsite=" + is_new)
+	print("URL=" + url)
+	print("Onion=" + onion)
+	print("Server=" + server)
+	print("Description=" + description)
+	print("Words=" + contentwords)
+	print("categories=" + categories)
+	print("Indexed=" + indexed)
+	print("LChecked=" + last_checked)
+	print("Status=" + status)
+	print("Links=" + links)
+	print("Images=" + images)
+	print("Fav=" + favicon)
+	print("Bitcoin=" + bitcoin)
+	print("Dogecoin=" + dogecoin)
+	print("ethereum=" + ethereum)
+	print("monero=" + monero)
+	print("meta=" + meta)
+	print("infotype=" + infotype)
+	print("selector=" + selector)
+	print("appearances=" + appearances)
+	print("first_seen=" + first_seen)
+
+	print("---")
+# Closing file
+f.close()
+

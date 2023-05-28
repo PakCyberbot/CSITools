@@ -1,0 +1,5 @@
+
+
+pidof conky  >/dev/null && killall conky || conky -c /opt/csitools/CSIMonitor >/dev/null 2>&1
+
+

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+mkdir /home/csi/Cases/Wanted
+cd /opt/csitools/fbi-mostwanted
+./fbi --wanted --dump /home/csi/Cases/Wanted/Wanted.txt
+gedit /home/csi/Cases/Wanted/Wanted.txt
+
+thunar /home/csi/Cases/Wanted
+
+cat /home/csi/Cases/Wanted/Wanted.txt | grep ID#: | cut -d" " -f3 | tee /tmp/wantednums
+
+IDS=$(cat /tmp/wantednums)
+for ID in $IDS
+do
+    echo "$ID"
+    ./fbi --wanted-person $ID --download
+    sleep 5
+    mv *.pdf /home/csi/Cases/Wanted/
+done

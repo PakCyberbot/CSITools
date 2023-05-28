@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+
+timestamp=$(date +%Y-%m-%d:%H:%M)
+
+mkdir /home/csi/Cases/SockPuppets
+mkdir /home/csi/Cases/SockPuppets/SP-$timestamp
+cd /opt/csitools/csi-sockpuppet
+
+./sockpuppetgen -r 1 | tee /home/csi/Cases/SockPuppets/SP-$timestamp/SP-$timestamp.txt
+gedit /home/csi/Cases/SockPuppets/SP-$timestamp/SP-$timestamp.txt
+
+echo "Sock Puppet Generated"
+cd /home/csi/Cases/SockPuppets/SP-$timestamp
+thunar /home/csi/Cases/SockPuppets/SP-$timestamp
+echo "Grabbing a Random Pic"
+thispersondoesnotexist &
+echo "Creating the Dossier"
+source /opt/csitools/startcsiconfig
+source ~/Cases/$cases/caseinfo.txt
+cd /home/csi/Cases/SockPuppets/SP-$timestamp
+_stopwatch; echo "$stopwatch: Building DMCA Takedown Notice." >> ~/Cases/$cases/audit.log
+template="Sockpuppet-Dossier-Template.odt"
+cp /home/csi/Documents/Templates/$template ./$template
+
+source SP-$timestamp.txt
+mkdir temp
+cd temp
+zodiac1=`zodiac-cn $(echo $DOB | cut -d"-" -f1)`
+zodiac2=`zodiac-western $(echo $DOB | cut -d"-" -f2) $(echo $DOB | cut -d"-" -f3 | cut -d"T" -f1
+)`
+sleep 5
+unzip ../$template
+sed -i "s/&lt;Name&gt;/$Name/g" meta.xml
+sed -i "s/&lt;Title&gt;/$Title/g" meta.xml
+sed -i "s/&lt;Sex&gt;/$Sex/g" meta.xml 
+sed -i "s/&lt;Age&gt;/$Age/g" meta.xml 
+sed -i "s/&lt;DOB&gt;/$DOB/g" meta.xml
+sed -i "s/&lt;zodiac1&gt;/$zodiac1/g" meta.xml
+sed -i "s/&lt;zodiac2&gt;/$zodiac2/g" meta.xml
+sed -i "s/&lt;Nationality&gt;/$Nationality/g" meta.xml
+sed -i "s/&lt;Country&gt;/$Country/g" meta.xml
+sed -i "s/&lt;City&gt;/$City/g" meta.xml
+sed -i "s/&lt;State&gt;/$State/g" meta.xml
+sed -i "s/&lt;PostcodeNum&gt;/$PostcodeNum/g" meta.xml
+sed -i "s|&lt;Lastknownlocation&gt;|"$Lastknownlocation"|g" meta.xml
+sed -i "s|&lt;PostcodeData&gt;|$PostcodeData|g" meta.xml
+sed -i "s|&lt;PostalcodeGoogle&gt;|$PostalcodeGoogle|g" meta.xml
+sed -i "s/&lt;StreetNum&gt;/$StreetNum/g" meta.xml
+sed -i "s/&lt;StreetName&gt;/$StreetName/g" meta.xml 
+sed -i "s/&lt;Latitude&gt;/$Latitude/g" meta.xml 
+sed -i "s/&lt;Longitude&gt;/$Longitude/g" meta.xml 
+sed -i "s/&lt;Placesvisited&gt;/$Placesvisited/g" meta.xml 
+sed -i "s/&lt;Phone&gt;/$Phone/g" meta.xml 
+sed -i "s/&lt;Cell&gt;/$Cell/g" meta.xml 
+sed -i "s/&lt;Email&gt;/$Email/g" meta.xml
+sed -i "s/&lt;Username&gt;/$Username/g" meta.xml
+sed -i "s/&lt;Password&gt;/$Password/g" meta.xml
+sed -i "s/&lt;Uuid&gt;/$Uuid/g" meta.xml
+sed -i "s/&lt;MD5&gt;/$MD5/g" meta.xml
+sed -i "s/&lt;SHA1&gt;/$SHA1/g" meta.xml
+sed -i "s/&lt;SHA256&gt;/$SHA256/g" meta.xml
+cp ../image-1.png Pictures/10000000000001F4000001F46F6C72D9C5E127D7.png
+zip -r "../Sock Puppet - $Name.odt" *
+_stopwatch; echo "$stopwatch: Sock Puppet - $Name" >> ~/Cases/SockPuppets/audit.log
+libreoffice "../Sock Puppet - $Name.odt" &
+
+
+

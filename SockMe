@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+mkdir /home/csi/Cases/SockPuppets
+cd /home/csi/Cases/SockPuppets
+clear
+
+thispersondoesnotexist
+

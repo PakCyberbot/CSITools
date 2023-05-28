@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Metagoofil GUI for CSI Linux
+
+StartMetagoofil() {
+	printf "Enter the case name\n"
+	if [ -z "$1" ]
+	then
+		cases=$(zenity --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+	else
+	      	cases=$1
+	      	echo "Adding to Case $cases"
+	fi	
+
+	if [ -n "$cases" ]; then
+		if [ ! -d "~/Cases/$cases" ]; then
+		   	mkdir ~/Cases/$cases 2>/dev/null
+			cd ~/Cases/$cases
+		fi 	
+		/opt/csitools/case_env $cases 2>/dev/null
+	else
+	  	zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+}
+
+StartMetagoofil $1
+
+domain=$(zenity --entry --title "Metagoofil" --text "Enter target domain name or username" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+		mkdir ~/Cases/$cases/Export/Website\ Info/$domain #2>/dev/null
+		python /opt/metagoofil/metagoofil.py -d $domain -t pdf,doc,xls,ppt,odp,ods,docx,xlsx,pptx -l 50 -n 50 -w -o /home/csi/Cases/$cases/Export/Website\ Info/$domain/ -f /home/csi/Cases/$cases/Export/Website\ Info/$domain/$domain.txt
+		google-chrome-stable ~/Cases/$cases/Export/$domain/$domain.txt

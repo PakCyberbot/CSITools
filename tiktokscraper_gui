@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+##Social Media Search App from CSI Linux by CSI Linux v2021.3.4.1
+##tools@csilinux.com - Jeremy Martin
+
+red=`tput setaf 1`
+reset=`tput sgr0`
+printf "Welcome to the Social Media Search App\n"
+timestamp=$(date +%Y-%m-%d:%H:%M)
+closecase=$(date +%Y%m%d%H%M)
+
+_tiktokscraper() {
+	handle=$(zenity --entry --title "TikTok Scraper" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		echo "0-- Attempting to pull data for $handle --0"
+		_stopwatch; echo "$stopwatch: Running CSI TikTok-Scraper." >> ~/Cases/$cases/audit.log
+		mkdir ~/Cases/$cases/Videos/TikTok
+		tiktok-scraper user $handle -d -n 100 --session sid_tt=dae32131231 --historypath ~/Cases/$cases/Videos/TikTok/ --filepath ~/Cases/$cases/Videos/TikTok/ |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+	else
+	  	zenity --error --text "No handle entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+}
+
+if [ -z "$1" ]
+then
+	echo "Fresh Run"
+	trap finish EXIT
+else
+	echo "$1 passed"
+fi
+
+StartCase "$1"
+echo "Case=$cases"
+_tiktokscraper

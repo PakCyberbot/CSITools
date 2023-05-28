@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+##CSI Mounting by CSI Linux v2021.2.17.1
+##tools@csilinux.com - Jeremy Martin - infosecwriter
+
+
+#define choices
+opt1="Mount a .DD (RAW) Image file as READ ONLY"
+opt2="Mount a .E01 Image file as READ ONLY"
+opt6="Mount a virtual disk Image file as READ ONLY"
+opt10="Mount a Advanced Forensics Format Image file"
+opt11="Mount a .DD (RAW) file as Read WRITE"
+opt12="Mount a LUKS Encrypted Drive from a RAW Image as Read WRITE"
+opt15="Mount a .E01 Image file as Read WRITE"
+
+opt22="Mount a .ISO Image"
+opt99="Exit"
+timestamp=$(date +%Y-%m-%d:%H:%M)
+closecase=$(date +%Y%m%d%H%M)
+fqdnregex="\b((xn--)?[a-z0-9]+(-[a-z0-9]+)*\.)+[a-z]{2,}\b"
+
+source /opt/csitools/sharedfunctions
+
+fschecke01() {
+	filesys=$(zenity --entry --title "Choose Filesystem" --text "Pick the File System that you want to mount" "FAT" "exFAT" "NTFS" "HFSPLUS" "APFS" "EXT" "ZFS" --entry-text "FAT")
+
+	case $csimenu in			
+		
+		FAT ) #FAT
+			echo $key | sudo -S dosfsck -t -a -w /mnt/$FILE/ewf1
+		;;
+		
+		exFAT ) #exFAT
+			echo $key | sudo -S exfatfsck -a /mnt/$FILE/ewf1
+		;;
+		
+		NTFS ) #NTFS
+			echo $key | sudo -S ntfsfix /mnt/$FILE/ewf1
+		;;
+		
+		HFSPLUS ) #HFS
+			echo $key | sudo -S fsck.hfsplus -f /mnt/$FILE/ewf1
+		;;
+		
+		APFS ) #APFS
+			echo $key | sudo -S fsapfsmount -f 1 /mnt/$FILE/ewf1 /media/$FILE 
+		;;
+			
+		EXT ) #EXT
+			MOUNTME=""
+		;;
+		
+		ZFS ) #ZFS
+			MOUNTME=""
+		;;
+		
+		*) exit
+	esac
+}
+
+
+Menu () {
+csimenu=$(zenity --list --title "Mounting a forensic image Menu" --text "What type of image would you like to mount?" --width=525 --height=400 --radiolist \
+	--column "Pick" --column "Option" \
+	TRUE "$opt1" \
+	FALSE "$opt2" \
+	FALSE "$opt6" \
+	FALSE "$opt10" \
+	FALSE "$opt11" \
+	FALSE "$opt12" \
+	FALSE "$opt15" \
+	FALSE "$opt22" \
+	FALSE "$opt99" \
+	2> >(grep -v 'GtkDialog' >&2)) 
+	
+
+echo "Pick your option to run..."
+_stopwatch; echo "$stopwatch: Mounting a forensic image Menu." >> ~/Cases/$cases/audit.log
+case $csimenu in			
+	
+	$opt1 ) #.DD(RAW)
+		IMAGE=`zenity --file-selection --title="Select a .E01 File to mount as READ ONLY"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+				echo $key | sudo -S losetup --show -Pf "$IMAGE" -r
+				;;
+		esac
+		Menu
+	;;
+	
+	$opt2 ) #.E01
+		yad --height=150 --auto-kill --title="Information you need to know" --text="This uses EWF and has support for reading and writing the Expert Witness Compression Format (EWF).\nThis library allows you to read meyad --aboutdia information of EWF files in the SMART (EWF-S01) \nformat and the EnCase (EWF-E01) format. It supports files created by EnCase 1 to 6, \nlinen and FTK Imager. " --text-align=center --on-top
+		IMAGE=`zenity --file-selection --title="Select a .E01 File to mount as READ ONLY"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+				echo $key | sudo -S mkdir /mnt/$FILE
+				echo $key | sudo -S ewfmount "$IMAGE"  /mnt/$FILE/
+				echo $key | sudo -S mkdir /media/$FILE
+				echo $key | sudo -S mount /mnt/$FILE/ewf1 /media/$FILE -o ro,loop,show_sys_files
+				thunar /media/$FILE
+				;;
+		esac
+		Menu
+	;;
+
+	$opt6 ) #.mount virtual disk
+		IMAGE=`zenity --file-selection --title="Select a virtual disk (.VMDK/.VDI) to mount as READ ONLY"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+				echo $key | sudo -S apt install qemu qemu-utils -y
+				echo $key | sudo -S modprobe nbd
+				echo $key | sudo -S mkdir /media/$FILE
+				echo $key | sudo -S qemu-nbd -r -c /dev/nbd1 $IMAGE
+				echo $key | sudo -S umount /dev/nbd1p1
+				echo $key | sudo -S mount /dev/nbd1p1 /media/$FILE
+				thunar /media/$FILE
+				;;
+		esac
+		Menu
+	;;
+
+	
+	$opt10 ) # Advanced Forensics Format 
+		IMAGE=`zenity --file-selection --title="Select an AFF File to mount as READ ONLY"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+				echo $key | sudo -S mkdir /media/$FILE
+				echo $key | sudo -S affuse "$IMAGE" /media/$FILE
+				thunar /media/$FILE
+				;;
+		esac
+		Menu
+	;;
+		
+	$opt11 ) #.DD(RAW)
+		IMAGE=`zenity --file-selection --title="Select a DD (RAW) file to mount ALL volumes"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+				echo $key | sudo -S losetup --show -Pf $IMAGE
+				;;
+		esac
+		Menu
+	;;
+	
+	$opt11 ) # LUKS .DD(RAW)
+		IMAGE=`zenity --file-selection --title="Select a DD (RAW) file to mount ALL volumes"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+				ENCFOLDER=$(zenity --password --title "Enter the Encrypted Drive Mount Point." --text "Enter folder name." --width 400)
+				echo $key | sudo -S mkdir /media/$ENCFOLDER
+				echo $key | sudo -S cryptsetup luksOpen $IMAGE $FILE
+				echo $key | sudo -S mount /dev/mapper/$FILE /tmp/$ENCFOLDER
+				;;
+		esac
+		Menu
+	;;	
+	
+	$opt15 ) #.E01
+		yad --height=150 --auto-kill --title="Information you need to know" --text="This uses EWF and has support for reading and writing the Expert Witness Compression Format (EWF).\nThis library allows you to read meyad --aboutdia information of EWF files in the SMART (EWF-S01) \nformat and the EnCase (EWF-E01) format. It supports files created by EnCase 1 to 6, \nlinen and FTK Imager. " --text-align=center --on-top
+		IMAGE=`zenity --file-selection --title="Select a .E01 as READ WRITE"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+				echo $key | sudo -S mkdir /mnt/$FILE
+				echo $key | sudo -S ewfmount "$IMAGE"  /mnt/$FILE/
+				echo $key | sudo -S mkdir /media/$FILE
+				echo $key | sudo -S mount /mnt/$FILE/ewf1 /media/$FILE -o rw,loop,show_sys_files
+				thunar /media/$FILE
+				;;
+		esac
+		Menu
+	;;
+
+	$opt22 ) #.ISO
+		IMAGE=`zenity --file-selection --title="Select the ISO file to mount"`
+		case $? in
+			 0)
+				FILE=$(basename -a ${IMAGE%.*})
+				echo $key | sudo -S mkdir /media/$FILE 2>/dev/null
+				echo $key | sudo -S mount "$IMAGE" /media/$FILE -o loop
+				thunar /media/$FILE
+				;;
+		esac
+		Menu
+	;;
+
+	$opt99 ) #Exit
+		exit
+	;;
+	*) exit
+	Menu
+	
+esac
+}
+
+trap finish EXIT
+
+key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+echo $key | sudo -S apt install fuse3 libfuse3-3 libfuse3-dev nfs-kernel-server exfat-fuse libfsapfs1 libfsapfs-utils libattr1-dev hfsprogs ntfs-3g dosfstools afflib-tools -y
+Menu

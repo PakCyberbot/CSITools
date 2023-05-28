@@ -1,0 +1,244 @@
+#!/usr/bin/env bash
+##CSI Cases base functions CSI Linux v2021.2.24.5
+##tools@csilinux.com - Jeremy Martin - infosecwriter
+
+#define choices
+timestamp=$(date +%Y-%m-%d:%H:%M)
+
+_stopwatch(){
+	stopwatch=$(date --rfc-2822)
+}
+
+_directip() {
+	direct=$(curl -s icanhazip.com)
+	direct_ISP=$(whob $direct | grep AS-Org-Name: | awk -F  ":" '{print $2}')
+	direct_city=$(whob $direct | grep City: | awk -F  ":" '{print $2}')
+	direct_country=$(whob $direct | grep Country: | awk -F  ":" '{print $2}')
+}
+
+StartCase() {
+	printf "Enter the case name\n"
+	source /opt/csitools/startcsiconfig
+	if [ -z "$1" ]
+	then
+		cases=$(zenity --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+	else
+		cases=$1
+		echo "Adding to Case $cases"
+	fi	
+	if [ -n "$cases" ]; then
+		if [ ! -d "~/Cases/$cases" ]; then
+		   	mkdir ~/Cases/$cases 2>/dev/null
+			cd ~/Cases/$cases
+		fi 	
+		/opt/csitools/case_env $cases 2>/dev/null
+		if test -f "/tmp/caseinfo.txt"; then
+			cp /tmp/caseinfo.txt ~/Cases/$cases/caseinfo.txt
+			rm -f /tmp/caseinfo.txt
+		fi
+		if test -f "caseinfo.txt"; then
+			echo "case found"
+		else
+			printf "investigator=''\ncasetype=''\nclient=''\ncases='$cases'\n" | tee caseinfo.txt
+		fi		
+		source caseinfo.txt
+	else
+	  	zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+}
+
+
+_Check-Case() {
+
+	source /opt/csitools/startcsiconfig
+	if [[ $csimonitorstats==on ]]
+	then
+	  /opt/csitools/monitorstats &
+	fi
+
+	zenity --question --width=300 --text="Welcome to the CSI Case Management System.  This application allows you to manage many aspects of your your investigation.  Please choose if this is a new case or an existing case." --ok-label="Start New Case" --cancel-label="Open Existing Case"
+	
+	case $? in
+         0) #yes
+		thecase=$(zenity --forms --title="Starting a new case" --text="Enter the Case Information" \
+			--add-entry="Investigator Name" \
+			--add-entry="Case Type (OSINT/SOCMINT/Dark Web/Digital Forensic Investigation..." \
+			--add-entry="Enter the client name for the report:" \
+			--add-entry="Enter the case to add this to")
+		investigator=$(echo $thecase | cut -f1 -d"|")
+		casetype=$(echo $thecase | cut -f2 -d"|")
+		client=$(echo $thecase | cut -f3 -d"|")
+		cases=$(echo $thecase | cut -f4 -d"|")
+		printf "investigator='$investigator'\ncasetype='$casetype'\nclient='$client'\ncases='$cases'\n" | tee /tmp/caseinfo.txt
+		StartCase $cases
+		 ;;
+         1) #Open Case
+		folder=$(zenity --width=400 --file-selection --title="Choose the folder in Cases folder for the case you want to use:" --filename=$HOME/Cases/ --directory)
+		case $? in
+			0) cases=$(basename $folder);;
+			1) 
+				zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+				exit;;
+			-1) 	  	
+				zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+				exit;;
+		esac
+		StartCase $cases
+                ;;
+        -1) #Oops
+                echo "You did not pick either option. exiting"
+                exit
+                ;;
+        esac
+}
+
+finish() {
+	_stopwatch; echo "$stopwatch: Exiting CSI Domain OSINT." >> ~/Cases/$cases/audit.log
+	if [ -n "$cases" ]; then
+		cd ~/Cases/$cases/
+		[ ! -e $cases.md5 ] || rm -f $cases.md5
+		shopt -s globstar
+		for i in **; do [[ -f "$i" ]] && md5sum "$i" >> $cases.md5; done
+		zip -r ~/Cases/Archive/$cases-$closecase.zip ~/Cases/$cases/
+		find -type f -exec md5sum '{}' \; > ~/Cases/Archive/$cases-$closecase.zip.md5
+	else
+		clear
+	fi
+}
+
+
+_usersearch() {
+	handle=$(zenity --entry --title "User Search" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		echo "0-- List Account to Search For --0" >> ~/Cases/$cases/Export/Accounts.txt
+		_stopwatch; echo "$stopwatch: Running CSI User Search." >> ~/Cases/$cases/audit.log
+		python3 /opt/sherlock/sherlock $handle --output ~/Cases/$cases/Export/Account_Search_sherlock_$handle.txt
+		/opt/csitools/usersearch $cases $handle
+		cat ~/Cases/$cases/Export/Account_Search_$handle.txt >> ~/Cases/$cases/Export/Account_Search_2$handle.txt
+		cat ~/Cases/$cases/Export/Account_Search_sherlock_$handle.txt >> ~/Cases/$cases/Export/Account_Search_2$handle.txt
+		cat ~/Cases/$cases/Export/Account_Search_2$handle.txt | sort -u | head -n -1 > ~/Cases/$cases/Export/Account_Search_$handle.txt && rm ~/Cases/$cases/Export/Account_Search_2$handle.txt
+		#/opt/csitools/adultusersearch $cases $handle
+		echo "Searching Twitter...\n"
+		cd /home/csi/Social/twitter/Exporter/
+		python -u /home/csi/python_scripts/twitter.py $handle 2>/dev/null
+		mapfile -n 2 < /home/csi/Social/twitter/Exporter/$handle/twitter.csv
+		if ((${#MAPFILE[@]}>1)); then
+			if [ ! -d "~/Cases/$cases/Export/Twitter_$handle" ]; then
+			   mkdir ~/Cases/$cases/Export/Twitter_$handle 2>/dev/null
+	 		fi
+			mv /home/csi/Social/twitter/Exporter/$handle/* ~/Cases/$cases/Export/Twitter_$handle || rm ~/Cases/$cases/Export/Twitter_$handle
+			cd ~/Cases/$cases/Export/Twitter_$handle
+			rm -rf /home/csi/Social/twitter/Exporter/$handle
+		else
+			rm -rf /home/csi/Social/twitter/Exporter/$handle
+			echo "Nothing found!"
+			sleep 3
+		fi
+		instauser=$(zenity --entry --title "Enter Your Instagram Username" --width=475 --text "Enter Your Instagram Username " 2> >(grep -v 'GtkDialog' >&2))   
+		if [ -n "$instauser" ]; then
+			instapass=$(zenity --entry --title "Enter Your Instagram Password"  --width=475 --text "Enter Your Instagram Password:" 2> >(grep -v 'GtkDialog' >&2))   
+			python3  /opt/instaloader/instaloader.py profile $handle --login $instauser --password $instapass --geotags --comments --stories --tagged --dirname-pattern ~/Cases/$cases/Export/Instagram
+		else
+			echo "Unauthenticated Instagram pull"
+			python3 /opt/instaloader/instaloader.py profile $handle --comments --tagged --dirname-pattern ~/Cases/$cases/Export/Instagram
+		fi
+	else
+	  	zenity --error --text "No handle entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+}
+
+_phonesearch() {
+	handle=$(zenity --entry --title "Phone Number Info" --text "Enter Phone Number to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		echo "0--  List Phone Numbers to Search For --0" >> ~/Cases/$cases/Export/PhoneNumbers.txt
+		_stopwatch; echo "$stopwatch: Running CSI Phone Search." >> ~/Cases/$cases/audit.log
+		/opt/csitools/phonesearch $cases $handle
+	else
+	  	zenity --error --text "No Phone Number entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+}
+
+_adultusersearch() {
+	handle=$(zenity --entry --title "Adult User Search" --text "Enter Adult Account to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		/opt/csitools/adultusersearch $cases $handle
+	else
+	  	zenity --error --text "No handle entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+}
+
+_maltego() {
+	_stopwatch; echo "$stopwatch: Running Maltego." >> ~/Cases/$cases/audit.log
+	maltegocheck
+}
+
+_hiddeneye() {
+	_stopwatch; echo "$stopwatch: Running HiddenEye." >> ~/Cases/$cases/audit.log
+	cd /opt/HiddenEye-Legacy/
+	xterm -e python3 ./HiddenEye.py
+}
+
+_cryptosearch() {
+	_stopwatch; echo "$stopwatch: Running CryptoSearch." >> ~/Cases/$cases/audit.log
+	cd ~/Cases/$cases/Export/
+	/opt/csitools/cryptosearch
+}
+
+_maltego() {
+	_stopwatch; echo "$stopwatch: Running Maltego." >> ~/Cases/$cases/audit.log
+	maltegocheck
+}
+
+_twinfo() {
+	printf "Enter the user name\n"
+	handle=$(zenity --entry --title "User Search" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2)) 
+	_stopwatch; echo "$stopwatch: Running Twitter Information Gathering." >> ~/Cases/$cases/audit.log
+	echo "Searching Twitter...\n"
+	cd /home/csi/Social/twitter/Exporter/
+	python -u /home/csi/python_scripts/twitter.py $handle 2>/dev/null
+	mapfile -n 2 < /home/csi/Social/twitter/Exporter/$handle/twitter.csv
+	if ((${#MAPFILE[@]}>1)); then
+		if [ ! -d "~/Cases/$cases/Export/Twitter_$handle" ]; then
+		   mkdir ~/Cases/$cases/Export/Twitter_$handle 2>/dev/null
+ 		fi
+		mv /home/csi/Social/twitter/Exporter/$handle/* ~/Cases/$cases/Export/Twitter_$handle || rm ~/Cases/$cases/Export/Twitter_$handle
+		cd ~/Cases/$cases/Export/Twitter_$handle
+		rm -rf /home/csi/Social/twitter/Exporter/$handle
+	else
+		rm -rf /home/csi/Social/twitter/Exporter/$handle
+		echo "Nothing found!"
+		sleep 3
+	fi
+}
+
+_hashtag() {
+	printf "Enter the user name\n"
+	handle=$(zenity --entry --title "Hashtag Search" --text "Enter #Hashtag to search for" 2> >(grep -v 'GtkDialog' >&2)) 
+	_stopwatch; echo "$stopwatch:Hashtag Search for $handle." >> ~/Cases/$cases/audit.log
+	cd /home/csi/Cases/$cases/Export
+	mkdir hashtag; cd hashtag
+	mkdir $handle
+	cd $handle
+	printf "Entering the directory: "$(pwd)"\n"
+	google-chrome-stable https://www.tiktok.com/tag/$handle https://www.hashatit.com/hashtags/$handle https://www.youtube.com/hashtag/$handle https://twitter.com/search?q=%23$handle https://www.linkedin.com/feed/hashtag/$handle https://www.hashtags.org/analytics/$handle/ &
+	/opt/csitools/websitegrab.py "https://www.tiktok.com/tag/$handle" 443  | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Tiktok screenshot..."
+	/opt/csitools/websitegrab.py "https://www.hashatit.com/hashtags/$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Hashatit screenshot..."
+	/opt/csitools/websitegrab.py "https://www.youtube.com/hashtag/$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a YouTube screenshot..." 2> /dev/null
+	/opt/csitools/websitegrab.py "https://twitter.com/search?q=%23$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Twitter screenshot..."
+	/opt/csitools/websitegrab.py "https://www.linkedin.com/feed/hashtag/$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Linkedin screenshot..."
+	/opt/csitools/websitegrab.py "https://www.hashtags.org/analytics/$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Hashtags.org screenshot..."
+	thunar ~/Cases/$cases/Export &
+}
+
+_spiderfoot() {
+	_stopwatch; echo "$stopwatch: Running Spiderfoot." >> ~/Cases/$cases/audit.log
+	/opt/csitools/spiderfoot
+}
+
+
+
+

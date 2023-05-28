@@ -1,0 +1,66 @@
+#! /usr/bin/python3
+# -*- coding: utf-8 -*-
+
+# CSI Linux JSON Scraper for Wigle
+# Copyright (C) 2021 the CSI Linux Team
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#
+
+"""A simple web page scraper for evidence capture.
+Author: Jeremy Martin
+Date: 6/01/2021
+"""
+
+import sys
+import getopt
+import json
+import webbrowser
+
+# Opening JSON file
+f = open(sys.argv[1],'r')
+
+# returns JSON object as
+# a dictionary
+data = json.load(f)
+
+# Iterating through the json
+# list
+
+maps="https://www.google.com/maps/dir/"
+
+for i in data['results']:
+	#print(i)
+	ssidval=str(i['ssid'])
+	netidval=str(i['netid'])
+	encryptionval=str(i['encryption'])
+	trilongval=str(i['trilong'])
+	trilatval=str(i['trilat'])
+	lastupdtval=str(i['lastupdt'])
+	housenumberval=str(i['housenumber'])
+	roadval=str(i['road'])
+	cityval=str(i['city'])
+	postalcodeval=str(i['postalcode'])
+	stateval=str(i['region'])
+	countryval=str(i['country'])
+	print("SSID:              " + ssidval)
+	print("BSSID|MAC Address: " + netidval)
+	print("Last Seen:         " + lastupdtval)
+	print("Latitude:          " + trilatval)
+	print("Longitude:         " + trilongval)
+	print("Google Maps Link:  https://www.google.com/maps/?q=" + trilatval + ","+ trilongval)
+	print("Likely Address:    " + housenumberval + " " + roadval)
+	print("                   " + cityval + " " + postalcodeval + ", " + stateval + " " + countryval)
+	print("---")
+	maps=maps + trilatval + ","+ trilongval + "/"
+
+maps=maps + "/@" + trilatval + ","+ trilongval + ",3z"
+print(maps)	
+
+webbrowser.get("/usr/bin/google-chrome-stable").open(maps)
+
+# Closing file
+f.close()
+

@@ -1,0 +1,1065 @@
+#!/usr/bin/env bash
+##CSI Cases base functions CSI Linux v2022.9.13.1
+##tools@csilinux.com - Jeremy Martin - infosecwriter
+
+export LD_LIBRARY_PATH=/usr/local/lib
+
+#define choices
+timestamp=$(date +%Y-%m-%d:%H:%M)
+
+
+_stopwatch(){
+	stopwatch=$(date --rfc-2822)
+}
+
+_directip() {
+	direct=$(curl -s icanhazip.com)
+	direct_ISP=$(whob $direct | grep AS-Org-Name: | awk -F  ":" '{print $2}')
+	direct_city=$(whob $direct | grep City: | awk -F  ":" '{print $2}')
+	direct_country=$(whob $direct | grep Country: | awk -F  ":" '{print $2}')
+}
+
+StartCase() {
+	printf "Enter the case name\n"
+	source /opt/csitools/startcsiconfig
+	
+	echo "Case=$1"
+	if [ -z "$1" ]
+	then
+		cases=$(zenity --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+		export cases=$cases
+	else
+		export cases=$1
+		echo "Adding to Case $cases"
+	fi	
+	if [ -n "$cases" ]; then
+		if [ ! -d "~/Cases/$cases" ]; then
+		   	mkdir ~/Cases/$cases 2>/dev/null
+			cd ~/Cases/$cases
+		fi 	
+		/opt/csitools/case_env $cases 2>/dev/null
+		if test -f "/tmp/caseinfo.txt"; then
+			cp /tmp/caseinfo.txt ~/Cases/$cases/caseinfo.txt
+			rm -f /tmp/caseinfo.txt
+		fi
+		if test -f "caseinfo.txt"; then
+			echo "case found"
+			echo $cases
+		else
+			printf "investigator=''\ncasetype=''\nclient=''\nsuspect=''\ncases='$cases'\n" | tee caseinfo.txt
+		fi		
+		source caseinfo.txt
+	else
+	  	zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+}
+
+
+_Check-Case() {
+	source /opt/csitools/startcsiconfig
+	if [[ $csimonitorstats==on ]]
+	then
+		echo ""
+##	  /opt/csitools/monitorstats &
+	fi
+
+	zenity --question --width=300 --text="Welcome to the CSI Case Management System.\rThis application allows you to manage many aspects of your your investigation.\rPlease choose if this is a new case or an existing case." --ok-label="Start New Case" --cancel-label="Open Existing Case"
+	
+	case $? in
+         0) #yes
+		thecase=$(zenity --forms --title="Starting a new case" --text="Enter the Case Information" \
+			--add-entry="Enter the case to add this to" \
+			--add-entry="Investigator Name" \
+			--add-entry="Case Type (OSINT/SOCMINT/Dark Web/Digital Forensic Investigation..." \
+			--add-entry="Enter the client name for the report:" \
+			--add-entry="Enter the client address:" \
+			--add-entry="Enter the client city:" \
+			--add-entry="Enter the client state:" \
+			--add-entry="Enter the client zip:" \
+			--add-entry="Enter the client phone number:" \
+			--add-entry="Enter the suspect name in the case:")
+		cases=$(echo $thecase | cut -f1 -d"|")
+		investigator=$(echo $thecase | cut -f2 -d"|")
+		casetype=$(echo $thecase | cut -f3 -d"|")
+		client=$(echo $thecase | cut -f4 -d"|")
+		clientaddy=$(echo $thecase | cut -f5 -d"|")
+		clientcity=$(echo $thecase | cut -f6 -d"|")
+		clientstate=$(echo $thecase | cut -f7 -d"|")
+		clientzip=$(echo $thecase | cut -f8 -d"|")
+		clientphone=$(echo $thecase | cut -f9 -d"|")
+		suspect=$(echo $thecase | cut -f10 -d"|")
+		
+		printf "investigator='$investigator'\ncasetype='$casetype'\nclient='$client'\nclientaddy='$clientaddy'\nclientcity='$clientcity'\nclientstate='$clientstate'\nclientzip='$clientzip'\nclientphone='$clientphone'\nsuspect='$suspect'\ncases='$cases'\n" | tee /tmp/caseinfo.txt
+		cp /tmp/caseinfo.txt ~/Cases/$cases/caseinfo.txt
+		rm -f /tmp/caseinfo.txt
+		source ~/Cases/$cases/caseinfo.txt
+		export cases
+		StartCase $cases | tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+		;;
+         1) #Open Case
+#		folder=$(zenity --width=400 --file-selection --title="Choose the folder in Cases folder for the case you want to use:" --filename=$HOME/Cases/ --directory)
+
+		cd ~/Cases
+		find -maxdepth 1 -type d > caselist.txt
+		sed -i 's/.\///g' caselist.txt
+		sed -i 's/Archive//g' caselist.txt
+		sed -i 's/.\//g' caselist.txt
+		cat caselist.txt
+		folder=$(zenity --entry --title "List Cases" --text $(sort caselist.txt -u) --text "Pick Case to open")
+		echo "The case: $folder"
+
+		case $? in
+			0) cases=$(basename $folder);;
+			1) 
+				zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+				exit;;
+			-1) 	  	
+				zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+				exit;;
+		esac
+		~/Cases/$cases/caseinfo.txt
+		StartCase $cases
+                ;;
+        -1) #Oops
+                echo "You did not pick either option. exiting"
+                exit
+                ;;
+        esac
+}
+
+finish() {
+	_stopwatch; echo "$stopwatch: Exiting CSI Domain OSINT." >> ~/Cases/$cases/audit.log
+	if [ -n "$cases" ]; then
+		cd ~/Cases/$cases/
+		[ ! -e $cases.md5 ] || rm -f $cases.md5
+		shopt -s globstar
+		for i in **; do [[ -f "$i" ]] && md5sum "$i" >> $cases.md5; done
+		zip -r ~/Cases/Archive/$cases-$closecase.zip ~/Cases/$cases/
+		find -type f -exec md5sum '{}' \; > ~/Cases/Archive/$cases-$closecase.zip.md5
+	else
+		clear
+	fi
+}
+
+_usersearch() {
+	handle=$(zenity --entry --title "User Search" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		echo "0-- List Account to Search For --0" >> ~/Cases/$cases/Export/Social\ Media/Accounts.txt
+		_stopwatch; echo "$stopwatch: Running CSI User Search." >> ~/Cases/$cases/audit.log
+		echo "Sherlock is starting"
+		python3 /opt/sherlock/sherlock $handle --output ~/Cases/$cases/Export/Social\ Media/Account_Search_sherlock_$handle.txt --timeout=10 |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+		echo "CSI usersearch is starting"
+		/opt/csitools/usersearch $cases $handle |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+		echo "CSI Linux User Search is done"
+		cat ~/Cases/$cases/Export/Social\ Media/Account_Search_$handle.txt >> ~/Cases/$cases/Export/Social\ Media/Account_Search_2$handle.txt
+		cat ~/Cases/$cases/Export/Social\ Media/Account_Search_sherlock_$handle.txt >> ~/Cases/$cases/Export/Social\ Media/Account_Search_2$handle.txt
+		cat ~/Cases/$cases/Export/Social\ Media/Account_Search_2$handle.txt | sort -u | head -n -1 > ~/Cases/$cases/Export/Social\ Media/Account_Search_$handle.txt && rm ~/Cases/$cases/Export/Social\ Media/Account_Search_2$handle.txt
+		echo "Possible user accounts filtered and sorted"
+		#/opt/csitools/adultusersearch $cases $handle
+		
+		if zenity --question --text="Would you like to open the findings in a browser?"; then
+			while read links; do 
+			    echo "Opening: $links"; screen -d -m google-chrome-stable $links &
+			done < ~/Cases/$cases/Export/Social\ Media/Account_Search_$handle.txt
+			echo "Please wait for Chrome to open..."
+			echo "Good Old Search Engines..."
+			screen -d -m google-chrome-stable https://www.google.com/search?q=$2&oq=$2 &
+			screen -d -m google-chrome-stable https://www.bing.com/search?q=$2&pq=$2 &
+		else
+			echo "Done."
+		fi 
+		# gedit ~/Cases/$cases/Export/Social\ Media/Account_Search_$handle.txt &	
+		_usersearch
+	else
+	  	zenity --error --text "No handle entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+	echo "Done"
+	exit
+	exit
+}
+
+_phonesearch() {
+	handle=$(zenity --entry --title "Phone Number Info" --text "Enter Phone Number to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		echo "0--  List Phone Numbers to Search For --0" >> ~/Cases/$cases/Export/PhoneNumbers.txt
+		_stopwatch; echo "$stopwatch: Running CSI Phone Search." >> ~/Cases/$cases/audit.log
+		/opt/csitools/phonesearch $cases $handle |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+	else
+	  	zenity --error --text "No Phone Number entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+	echo "Done"
+}
+
+_adultusersearch() {
+	handle=$(zenity --entry --title "Adult User Search" --text "Enter Adult Account to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		/opt/csitools/adultusersearch $cases $handle |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+		echo "CSI Linux Adult User Search is done"
+	else
+	  	zenity --error --text "No handle entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+	echo "Done"
+}
+
+_maltego() {
+	_stopwatch; echo "$stopwatch: Running Maltego." >> ~/Cases/$cases/audit.log
+	maltegocheck
+}
+
+_hiddeneye() {
+	_stopwatch; echo "$stopwatch: Running HiddenEye." >> ~/Cases/$cases/audit.log
+	cd /opt/HiddenEye-Legacy/
+	xterm -e python3 ./HiddenEye.py
+}
+
+_cryptosearch() {
+	_stopwatch; echo "$stopwatch: Running CryptoSearch." >> ~/Cases/$cases/audit.log
+	cd ~/Cases/$cases/Export/
+	mkdir ~/Cases/$cases/Export/DarkWeb/Cryptocurrency
+	cd ~/Cases/$cases/Export/DarkWeb/Cryptocurrency
+	mkdir Crypto
+	cd Crypto	
+	/opt/csitools/cryptosearch |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+	_stopwatch; echo "$stopwatch: Running Bitcoin Search." >> ~/Cases/$cases/audit.log	
+}
+
+_twinfo() {
+	printf "Enter the user name\n"
+	handle=$(zenity --entry --title "User Search" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2)) 
+	
+	pip uninstall twint -y
+	pip3 install --upgrade git+https://github.com/twintproject/twint.git@origin/master#egg=twint
+	/bin/sed -i 's/3.6/1/g' ~/.local/lib/python3.10/site-packages/twint/cli.py
+	
+	_stopwatch; echo "$stopwatch: Running Twitter Information Gathering." >> ~/Cases/$cases/audit.log
+	echo "Searching Twitter...\n"
+
+	if [ ! -d "~/Cases/$cases/Export/Social\ Media/Twitter_$handle" ]; then
+		mkdir ~/Cases/$cases/Export/Social\ Media/Twitter_$handle 2>/dev/null
+	fi
+	twint -u $handle --user-ful -o ~/Cases/$cases/Export/Social\ Media/Twitter_$handle/userinfo.txt
+	twint -u $handle --stats --count -o ~/Cases/$cases/Export/Social\ Media/Twitter_$handle/tweets.csv
+	cd ~/Cases/$cases/Export/Social\ Media/Twitter_$handle
+
+	echo "Done"
+}
+
+_hashtag() {
+	printf "Enter the user name\n"
+	handle=$(zenity --entry --title "Hashtag Search" --text "Enter #Hashtag to search for" 2> >(grep -v 'GtkDialog' >&2)) 
+	_stopwatch; echo "$stopwatch:Hashtag Search for $handle." >> ~/Cases/$cases/audit.log
+	cd /home/csi/Cases/$cases/Export
+	mkdir hashtag; cd hashtag
+	mkdir $handle
+	cd $handle
+	printf "Entering the directory: "$(pwd)"\n"
+	google-chrome-stable https://www.tiktok.com/tag/$handle https://www.hashatit.com/hashtags/$handle https://www.youtube.com/hashtag/$handle https://twitter.com/search?q=%23$handle https://www.linkedin.com/feed/hashtag/$handle https://www.hashtags.org/analytics/$handle/ &
+	echo "Pulling screenshot from tiktok"
+	cutycapt --url="https://www.tiktok.com/tag/$handle" 443  | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Tiktok screenshot..."
+	echo "Pulling screenshot from hashatit"
+	cutycapt --url="https://www.hashatit.com/hashtags/$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Hashatit screenshot..."
+	echo "Pulling screenshot from youtube"
+	cutycapt --url="https://www.youtube.com/hashtag/$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a YouTube screenshot..." 2> /dev/null
+	echo "Pulling screenshot from twitter"
+	cutycapt --url="https://twitter.com/search?q=%23$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Twitter screenshot..."
+	echo "Pulling screenshot from hashtags"
+	cutycapt --url="https://www.hashtags.org/analytics/$handle" 443 | zenity --progress --pulsate --no-cancel --auto-close --text="Attempting to grab a Hashtags.org screenshot..."
+	echo "Done"
+	thunar ~/Cases/$cases/Export &
+}
+
+_spiderfoot() {
+	_stopwatch; echo "$stopwatch: Running Spiderfoot." >> ~/Cases/$cases/audit.log
+	/opt/csitools/spiderfoot
+}
+
+_tiktokscraper() {
+	handle=$(zenity --entry --title "TikTok Scraper" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$handle" ]; then
+		echo "0-- Attempting to pull data for $handle --0"
+		_stopwatch; echo "$stopwatch: Running CSI TikTok-Scraper." >> ~/Cases/$cases/audit.log
+		mkdir ~/Cases/$cases/Export/Social\ Media/TikTok
+		tiktok-scraper user $handle -d -n 100 --session sid_tt=dae32131231 --historypath ~/Cases/$cases/Export/Social\ Media/TikTok --filepath ~/Cases/$cases/Export/Social\ Media/TikTok |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+	else
+	  	zenity --error --text "No handle entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+	echo "Done"
+}
+
+_github() {
+	handle=$(zenity --entry --title "TikTok Scraper" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2))  
+	mkdir ~/Cases/$cases/Export/Social\ Media/Github
+	curl -s "https://api.github.com/users/$handle" | \
+	awk -F'"' '
+	/\"name\":/ {
+	print " - "$4" is the name of the GitHub user."
+	}
+	/\"followers\":/{
+	split($3, a, " ")
+	sub(/,/, "", a[2])
+	print " - They have "a[2]" followers."
+	}
+	/\"following\":/{
+	split($3, a, " ")
+	sub(/,/, "", a[2])
+	print " - They are following "a[2]" other users."
+	}
+	/\"created_at\":/{
+	print " - Their account was created on "$4"."
+	}
+	' | tee ~/Cases/$cases/Export/Social\ Media/Github/$handle.txt
+	echo "done"
+}
+
+_instagram() {
+	handle=$(zenity --entry --title "User Search" --text "Enter username to search for" 2> >(grep -v 'GtkDialog' >&2))  
+	instauser=$(zenity --entry --title "Enter Your Instagram Username" --width=475 --text "Enter Your Instagram Username " 2> >(grep -v 'GtkDialog' >&2))   
+	if [ -n "$instauser" ]; then
+		instapass=$(zenity --entry --title "Enter Your Instagram Password"  --width=475 --text "Enter Your Instagram Password:" 2> >(grep -v 'GtkDialog' >&2))   
+		instaloader profile $handle -- $instauser --password $instapass --geotags --comments --stories --tagged --dirname-pattern ~/Cases/$cases/Export/Social\ Media/Instagram
+	else
+		echo "Unauthenticated Instagram pull"
+		instaloader profile $handle --comments --tagged --dirname-pattern ~/Cases/$cases/Export/Social\ Media/Instagram #|tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+	fi
+}
+
+_torvpn() {
+	_stopwatch; echo "$stopwatch: Running CSI TorVPN." >> ~/Cases/$cases/audit.log
+	xterm -e /opt/csitools/CSI_TorVPN
+	_directip; _stopwatch; echo "$stopwatch: Direct IP: " $direct "("$direct_city:$direct_country" )- $direct_ISP" >> ~/Cases/$cases/audit.log
+}
+
+_torgateway() {
+	_stopwatch; echo "$stopwatch: Running CSI Gateway for Whonix." >> ~/Cases/$cases/audit.log
+	xterm -e /opt/csitools/CSI_Gateway
+	_directip; _stopwatch; echo "$stopwatch: Direct IP: " $direct "("$direct_city:$direct_country" )- $direct_ISP" >> ~/Cases/$cases/audit.log
+}
+
+_torbrowser() {
+	_stopwatch; echo "$stopwatch: Running Tor Browser." >> ~/Cases/$cases/audit.log
+	if ! which torbrowser-launcher > /dev/null; then
+		key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+		echo $key | sudo -S apt install torbrowser-launcher
+		torbrowser-launcher
+	else
+		/home/csi/.local/share/torbrowser/tbb/x86_64/tor-browser_en-US/Browser/start-tor-browser /opt/csitools/CSI-Bookmarks.html
+	fi
+	_directip; _stopwatch; echo "$stopwatch: Direct IP: " $direct "("$direct_city:$direct_country" )- $direct_ISP" >> ~/Cases/$cases/audit.log
+	echo "Done"
+}
+
+_projecthades() {
+	_stopwatch; echo "$stopwatch: Starting Project Hades: " >> ~/Cases/$cases/audit.log
+	xterm -e /opt/csitools/ProjectHades $cases
+	
+	echo "Done"
+}
+
+
+_onionsearch() {
+	searchterm=$(zenity --entry --title "OnionSearch" --text "Enter keyword to search for" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+	_stopwatch; echo "$stopwatch: Running Onion Search for $searchterm." >> ~/Cases/$cases/audit.log
+	_directip; _stopwatch; echo "$stopwatch: Direct IP: " $direct "("$direct_city:$direct_country" )- $direct_ISP" >> ~/Cases/$cases/audit.log
+	mkdir ~/Cases/$cases
+	mkdir ~/Cases/$cases/Export
+	mkdir ~/Cases/$cases/Export/DarkWeb
+	
+	searchterm1=$(echo $searchterm | sed 's/\ /%20/g')
+	echo $searchterm1
+	searchterm2=$(echo $searchterm | sed 's/\ /\\\ /g')
+	echo $searchterm2
+	
+	echo "This will take some time"
+	zenity --width 300 --info --text="This Tor Search will take some time...  Get some caffeine or take a break.\nCheck the ~/Cases/$cases/Export/DarkWeb/ folder when it is done" &
+	# xterm -e /bin/bash -l -c "onionsearch "$searchterm" --output ~/Cases/$cases/Export/DarkWeb/$searchterm.txt && gedit ~/Cases/$cases/Export/DarkWeb/$searchterm.txt"
+	
+	onionsearch "$searchterm1" --output "/home/csi/Cases/$cases/Export/DarkWeb/$searchterm1.csv" & # && libreoffice --calc ~/Cases/$cases/Export/DarkWeb/$searchterm1.csv
+
+	#echo "Attempting to convert to HTML"
+	#zenity --width 300 --info --text="When the OnoionSearch is done, press ok to convert into an HTML file to view with your browser." &
+	#/opt/csitools/onionsearch2html ~/Cases/$cases/Export/DarkWeb/$searchterm.txt | tee ~/Cases/$cases/Export/DarkWeb/$searchterm.html && google-chrome-stable --incognito ~/Cases/$cases/Export/DarkWeb/$searchterm.html 
+	exit
+}
+
+_onionshare() {
+	_stopwatch; echo "$stopwatch: Running OnionShare GUI to share files." >> ~/Cases/$cases/audit.log
+	#Run Tool
+	cd ~/Cases/$cases/Export/DarkWeb/OnionShare/
+	onionsharerun "--filenames *" &
+	exit
+}
+
+_hiddenservice() {
+	_stopwatch; echo "$stopwatch: Starting a Tor Hidden Service." >> ~/Cases/$cases/audit.log
+	mkdir ~/Cases/$cases/HiddenService 2>/dev/null
+	cd ~/Cases/$cases/HiddenService
+	#Run Tool
+	key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400); echo $key
+			
+	if grep -R "HiddenServiceDir /home/csi/Cases/$cases/HiddenService" /etc/tor/torrc
+	then
+	    	echo "Service Already Set"
+	else
+		
+		PORT=$(zenity --forms --title="Hidden Service Setup" --text="Enter the URL, Port, and Case name" --add-entry="Port (80, 443, etc)")
+		echo $key | sudo -S chown csi:csi /etc/tor/torrc
+		echo $key | sudo -S echo "HiddenServiceDir /home/csi/Cases/$cases/HiddenService" >> /etc/tor/torrc
+		echo $key | sudo -S echo "HiddenServicePort $PORT 127.0.0.1:$PORT" >> /etc/tor/torrc
+		echo $key | sudo -S chown root:root /etc/tor/torrc
+		echo $key | sudo -S service tor restart
+	fi
+}
+
+_Sublist3r() {
+	echo "Case for Domain Recon=$1"
+	if [ -z "$1" ]
+	then
+		cases=$(zenity --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+		export cases=$cases
+	else
+		export cases=$1
+		echo "Adding to Domain Recon Case $cases"
+	fi
+	echo "Searching domains"
+	/opt/csitools/sublisterapp $cases
+	thunar ~/Cases/$cases/Export/Network\ Info/$domain &
+}
+	
+_getlinks() {
+	echo "Case for GetLinks=$1"
+	if [ -z "$1" ]
+	then
+		cases=$(yad --on-top --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+		export cases=$cases
+	else
+		export cases=$1
+		echo "Adding to Domain Recon Case $cases"
+	fi
+	domain=$(yad --on-top --entry --width=300 --title "Get Links from a webpage." --text "Enter target domain name" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+	if [ ! -z "$domain" ]; then
+		_stopwatch; echo "$stopwatch: Running CSI Website Link Extractor." >> ~/Cases/$cases/audit.log
+		mkdir ~/Cases/$cases/Export/Network\ Info/$domain
+		#Run Tool
+		cd /opt/csitools
+		./getlinks $domain | tee ~/Cases/$cases/Export/Network\ Info/$domain/site-links-$domain.txt
+	fi
+	thunar ~/Cases/$cases/Export/Network\ Info/$domain &
+}
+
+_metagoofil() {
+	export LD_LIBRARY_PATH=/usr/local/lib
+	if [ -z "$1" ]
+	then
+		cases=$(yad --on-top --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+		export cases=$cases
+	else
+		export cases=$1
+		echo "Adding to Metagoofil Case $cases"
+	fi
+	domain=$(zenity --entry --title "Metagoofil" --text "Enter target domain name or username" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+	_stopwatch; echo "$stopwatch: Running Metagoofil." >> ~/Cases/$cases/audit.log
+	mkdir ~/Cases/$cases/Export/Network\ Info/$domain 2>/dev/null
+	python /opt/metagoofil/metagoofil.py -d $domain -t pdf,doc,xls,ppt,odp,ods,docx,xlsx,pptx -l 500 -n 500 -o ~/Cases/$cases/Export/Network\ Info/$domain/ -f ~/Cases/$cases/Export/Network\ Info/$domain/$domain.html
+	screen -d -m google-chrome-stable ~/Cases/$cases/Export/Network\ Info/$domain/$domain.html
+}
+
+_httrackcli() {
+	export LD_LIBRARY_PATH=/usr/local/lib
+	if [ -z "$1" ]
+	then
+		cases=$(yad --on-top --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+		export cases=$cases
+	else
+		export cases=$1
+		echo "Adding to Metagoofil Case $cases"
+	fi
+	domain=$(zenity --entry --title "HTTrack CLI" --text "Enter target domain" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+	_stopwatch; echo "$stopwatch: Running HTTrack website cloning utility." >> ~/Cases/$cases/audit.log
+	domaintarget=$(echo $domain | sed 's~http[s]*://~~g')
+	mkdir ~/Cases/$cases/Export/Network\ Info/$domaintarget 2>/dev/null
+	httrack $domain -O ~/Cases/$cases/Export/Network\ Info/$domaintarget/mirror
+	zip -r ~/Cases/$cases/Export/Network\ Info/$domaintarget/$domaintarget.zip ~/Cases/$cases/Export/Network\ Info/$domaintarget/
+	cd ~/Cases/$cases/Export/Network\ Info/$domaintarget/
+	find -type f -exec md5sum '{}' \; > ~/Cases/$cases/Export/Network\ Info/$domaintarget/$domaintarget.zip.md5
+	sleep 3
+	screen -d -m google-chrome-stable  ~/Cases/$cases/Export/Network\ Info/$domaintarget/mirror/index.html
+}
+
+_CSIWebsiteScreenshot() {
+	#define choices
+	_stopwatch; echo "$stopwatch: Running CSI Website Screenshotab." >> ~/Cases/$cases/audit.log
+	/opt/csitools/websitescreenshot
+}
+
+
+_nmap() {
+	if [ -z "$1" ]
+	then
+		cases=$(yad --on-top --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+		export cases=$cases
+	else
+		export cases=$1
+		echo "Adding to NMap Basic to Case $cases"
+	fi
+	domain=$(zenity --entry --title "NMap Basic Scan" --text "Enter target domain" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+	_stopwatch; echo "$stopwatch: Running NMap against $domain." >> ~/Cases/$cases/audit.log
+	mkdir ~/Cases/$cases/Export/Network\ Info/$domaintarget 2>/dev/null	
+	nmap $domain -A -vv -oA ~/Cases/$cases/Export/Network\ Info/$domain/NMap-Basic |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="NMap is scanning, please wait...")
+
+	gedit ~/Cases/$cases/Export/Network\ Info/$domain/NMap-Basic.nmap &
+}
+
+_wifissid() {
+	source /opt/csitools/APIKeys
+	if [ -z "$wigleapiname" ]; then
+		wigleapiname=$(zenity --entry --title "Wigle API Name" --text "Enter Wigle API Name from Wigle.net)" 2> >(grep -v 'GtkDialog' >&2)) || exit
+		wigleapitoken=$(zenity --entry --title "Wigle API Token" --text "Enter Wigle API Token from Wigle.net)" 2> >(grep -v 'GtkDialog' >&2)) || exit
+		sed -i "s/wigleapiname=''/wigleapiname='$wigleapiname'/g" /opt/csitools/APIKeys
+		sed -i "s/wigleapitoken=''/wigleapitoken='$wigleapitoken'/g" /opt/csitools/APIKeys
+	fi
+	
+	Target=$(zenity --entry --title "Access Point Name" --text "Enter SSID of WiFi Access Point to Search" 2> >(grep -v 'GtkDialog' >&2)) || exit
+	curl -H 'Accept:application/json' -u $wigleapiname:$wigleapitoken --basic https://api.wigle.net/api/v2/network/search?ssid=$Target | tee /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.json
+	/opt/csitools/jsonviewwigle /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.json | tee /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.txt
+	gedit /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.txt &
+	#pyjsonviewer -f /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.txt
+}
+
+_wifibssid() {
+	source /opt/csitools/APIKeys
+	if [ -z "$wigleapiname" ]; then
+		wigleapiname=$(zenity --entry --title "Wigle API Name" --text "Enter Wigle API Name from Wigle.net)" 2> >(grep -v 'GtkDialog' >&2)) || exit
+		wigleapitoken=$(zenity --entry --title "Wigle API Token" --text "Enter Wigle API Token from Wigle.net)" 2> >(grep -v 'GtkDialog' >&2)) || exit
+		sed -i "s/wigleapiname=''/wigleapiname='$wigleapiname'/g" /opt/csitools/APIKeys
+		sed -i "s/wigleapitoken=''/wigleapitoken='$wigleapitoken'/g" /opt/csitools/APIKeys
+	fi
+	Target=$(zenity --entry --title "Access Point BSSID" --text "Enter BSSID of WiFi Access Point to Search\n (MAC Address like 42:42:42:42:42:42)" 2> >(grep -v 'GtkDialog' >&2)) || exit
+	curl -H 'Accept:application/json' -u $wigleapiname:$wigleapitoken --basic https://api.wigle.net/api/v2/network/search?netid=$Target | tee /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.json
+	echo "Building text file"
+	/opt/csitools/jsonviewwigle /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.json | tee /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.txt
+	gedit /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.txt &
+	#pyjsonviewer -f /home/csi/Cases/$cases/Export/WiFi-Geolocation-$Target.txt
+
+}
+
+_geolocation() {
+	/opt/csitools/geolocation $cases
+}
+
+_geolocationip1 () {
+	source /opt/csitools/APIKeys
+	if [ -z "$shodan_api" ]; then
+		shodan_api=$(zenity --entry --title "Shodan API" --text "Enter your Shodan API key from Shodan.io" 2> >(grep -v 'GtkDialog' >&2)) || exit
+		sed -i "s/shodan_api=''/shodan_api='$shodan_api'/g" /opt/csitools/APIKeys
+		shodan init $shodan_api
+	fi
+	
+	if [ -z "$1" ]; then
+		Target=$(zenity --entry --title "IP Address Registered Location" --text "Enter IP Address to find the ISP Registered Address" 2> >(grep -v 'GtkDialog' >&2)) || exit
+	else
+		Target=$1
+	fi
+	
+	#ipinfo=$(curl https://api.hackertarget.com/geoip/?q=$Target | tee /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt)
+	#lat=$(echo $ipinfo | cut -f7 -d: | cut -f2 -d" "); echo $lat
+	#long=$(echo $ipinfo | cut -f6 -d: |  cut -f2 -d" "); echo $long
+	
+
+	ipaddripapico=$(curl -s "https://ipapi.co/$Target/json" -L)
+	ipaddripapicom=$(curl -s "http://ip-api.com/json/$Target" -L)
+	userip=$(echo $ipaddripapico | grep -Po '(?<="ip":)[^,]*' | tr -d '[]"')
+	usercity=$(echo $ipaddripapico | grep -Po '(?<="city":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	useregion=$(echo $ipaddripapico | grep -Po '(?<="region":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	usercountry=$(echo $ipaddripapico | grep -Po '(?<="country_name":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	long=$(echo $ipaddripapicom | grep -Po '(?<="lat":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	lat=$(echo $ipaddripapicom | grep -Po '(?<="lon":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	usertime=$(echo $ipaddripapicom | grep -Po '(?<="timezone":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	userpostal=$(echo $ipaddripapicom | grep -Po '(?<="zip":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	userisp=$(echo $ipaddripapico | grep -Po '(?<="org":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	userasn=$(echo $ipaddripapico | grep -Po '(?<="asn":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	usercountrycode=$(echo $ipaddripapico | grep -Po '(?<="country_code":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	usercurrency=$(echo $ipaddripapico | grep -Po '(?<="currency":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	userlanguage=$(echo $ipaddripapico | grep -Po '(?<="languages":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+	usercalling=$(echo $ipaddripapico | grep -Po '(?<="country_calling_code":)[^},]*' | tr -d '[]"' | sed 's/\(<[^>]*>\|<\/>\|{1|}\)//g')
+
+	printf "Ip Address  : $userip\n" | tee /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "ISP         : $userisp\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "ASN         : $userasn\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "City        : $usercity\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Region      : $useregion\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Postal Code :  $userpostal\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Country     : $usercountry\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Country Code: $usercountrycode\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Calling Code: $usercalling\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Time Zone   :  $usertime\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Currency    : $usercurrency\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Languages   : $userlanguage\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Latitude    :  $lat\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "Longitude   :  $long\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+	printf "GOOGLE Maps:   https://maps.google.com/?q=$long,$lat\n" | tee -a /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt
+
+	
+	shodan host $Target | tee /home/csi/Cases/$cases/Export/IP-Shodan-Info-$Target.txt
+	gedit /home/csi/Cases/$cases/Export/IP-Shodan-Info-$Target.txt /home/csi/Cases/$cases/Export/IP-Geolocation-$Target.txt &
+	google-chrome-stable-stable https://www.google.com/maps/place/$long,$lat//@$long,$lat,12z &
+	exit
+
+}
+
+_geolocatebySE() {
+	/opt/HiddenEye-Legacy
+	python3 HiddenEye.py
+	zenity --info --text="In the Terminal windows, type '0A'and Enter for Get Target Location\r\rPick your Operation mode '1' and Enter usually works\r\rThe press Enter\r\rThen press Enter\r\rThe enter a URL/web site you want them to redirect to\r\rThen enter a local port to run your server\r\rThen type '01' for Ngrok\r\rPress OK to close this window"  --width 400
+}
+
+_gitleaks() {
+	/opt/csitools/helper/gitleaksrun $cases
+}
+
+_reportgen() {
+	#Run Tool
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	rm -rf ~/Cases/$cases/Report/*
+	mkdir ~/Cases/$cases/Report
+	cd ~/Cases/$cases/Report
+	ropt1="Suspect Dossier"
+	ropt2="Forensic Report"
+	ropt3="Custom Forensic Report"
+
+	reportmenu=$(zenity --list --title "CSI Case Management Template Options" --text "What report template would you like to use?" --width=350 --height=200 --radiolist \
+		--column "Pick" --column "Option" \
+		TRUE "$ropt1" \
+		FALSE "$ropt2" \
+		FALSE "$ropt3" 
+		2> >(grep -v 'GtkDialog' >&2)) 
+
+	echo "Pick your option to run..."
+	_stopwatch; echo "$stopwatch: CSI Case Management Menu." >> ~/Cases/$cases/audit.log
+	case $reportmenu in			
+		
+		$ropt1 ) #Dossier
+			template="/home/csi/Documents/Templates/Shadowdragon-Dossier-Template.odt"
+		;;
+		
+		$ropt2 ) #Forensic Report
+			template="/home/csi/Documents/Templates/Forensic-investigation-report-template.odt"
+		;;
+		
+		$ropt3 ) #Custom Report
+			template="/home/csi/Documents/Templates/Custom-Template.odt"
+		;;		
+		*) echo "$0: unknown option specified: " >&2		
+	esac
+
+	unzip $template
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Client&gt;/$client/g" meta.xml
+	sed -i "s/&lt;Client Address&gt;/$clientaddy/g" meta.xml
+	sed -i "s/&lt;Client City&gt;/$clientcity/g" meta.xml
+	sed -i "s/&lt;Client State&gt;/$clientstate/g" meta.xml
+	sed -i "s/&lt;Client Zip&gt;/$clientzip/g" meta.xml
+	sed -i "s/&lt;Client Phone&gt;/$clientphone/g" meta.xml
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "Report for $cases.odt" *
+	libreoffice "Report for $cases.odt" &
+
+}
+
+_nda() {
+	#Run Tool
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	rm -rf ~/Cases/$cases/Temp/NDA/*
+	mkdir ~/Cases/$cases/Temp/NDA
+	cd ~/Cases/$cases/Temp/NDA
+	_stopwatch; echo "$stopwatch: Building NDA." >> ~/Cases/$cases/audit.log
+	template="/home/csi/Documents/Templates/NDA-Template.odt"
+	unzip $template
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Client&gt;/$client/g" meta.xml
+	sed -i "s/&lt;Client Address&gt;/$clientaddy/g" meta.xml
+	sed -i "s/&lt;Client City&gt;/$clientcity/g" meta.xml
+	sed -i "s/&lt;Client State&gt;/$clientstate/g" meta.xml
+	sed -i "s/&lt;Client Zip&gt;/$clientzip/g" meta.xml
+	sed -i "s/&lt;Client Phone&gt;/$clientphone/g" meta.xml
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "NDA for $client - $cases.odt" *
+	cp "NDA for $client - $cases.odt" ~/Cases/$cases/
+	cd ~/Cases/$cases/
+	_stopwatch; echo "$stopwatch: Opening NDA." >> ~/Cases/$cases/audit.log
+	libreoffice "NDA for $client - $cases.odt" &
+}
+
+_consenttosearch() {
+	#Run Tool
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	rm -rf ~/Cases/$cases/Temp/CONSENT/*
+	mkdir ~/Cases/$cases/Temp/CONSENT
+	cd ~/Cases/$cases/Temp/CONSENT
+	_stopwatch; echo "$stopwatch: Building Consent to Search" >> ~/Cases/$cases/audit.log
+	template="/home/csi/Documents/Templates/Consent-to-Search.odt"
+	unzip $template
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Client&gt;/$client/g" meta.xml
+	sed -i "s/&lt;Client Address&gt;/$clientaddy/g" meta.xml
+	sed -i "s/&lt;Client City&gt;/$clientcity/g" meta.xml
+	sed -i "s/&lt;Client State&gt;/$clientstate/g" meta.xml
+	sed -i "s/&lt;Client Zip&gt;/$clientzip/g" meta.xml
+	sed -i "s/&lt;Client Phone&gt;/$clientphone/g" meta.xml
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "Consent to Search for $cases.odt" *
+	cp "Consent to Search for $cases.odt" ~/Cases/$cases/
+	cd ~/Cases/$cases/
+	_stopwatch; echo "$stopwatch: Opening Consent to Search." >> ~/Cases/$cases/audit.log
+	libreoffice "Consent to Search for $cases.odt" &
+}
+
+_CoC() {
+	#Run Tool
+	rm -rf ~/Cases/$cases/Temp/CoC/*
+	mkdir ~/Cases/$cases/Temp/CoC
+	cd ~/Cases/$cases/Temp/CoC
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	_stopwatch; echo "$stopwatch: Building Chain-of-Custody." >> ~/Cases/$cases/audit.log
+	template="/home/csi/Documents/Templates/Chain-of-Custody-Template.odt"
+	unzip $template
+	thecoc=$(zenity --forms --width=400 --title="Enter the Person to Acquire the Evidence" --text="Enter Who Aquired the Evidence?" \
+		--add-entry="Name" \
+		--add-entry="Location of Acquisition" \
+		--add-entry="Reason of Acquisition")
+	cocname=$(echo $thecoc | cut -f1 -d"|")
+	cocloc=$(echo $thecoc | cut -f2 -d"|")
+	cocreason=$(echo $thecoc | cut -f3 -d"|")
+	sed -i "s/&lt;CoC Name&gt;/$cocname/g" meta.xml
+	sed -i "s/&lt;CoC Location&gt;/$cocloc/g" meta.xml
+	sed -i "s/&lt;CoC Date&gt;/$cocdate/g" meta.xml
+	sed -i "s/&lt;CoC Reason&gt;/$cocreason/g" meta.xml
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Client&gt;/$client/g" meta.xml
+	sed -i "s/&lt;Client Address&gt;/$clientaddy/g" meta.xml
+	sed -i "s/&lt;Client City&gt;/$clientcity/g" meta.xml
+	sed -i "s/&lt;Client State&gt;/$clientstate/g" meta.xml
+	sed -i "s/&lt;Client Zip&gt;/$clientzip/g" meta.xml
+	sed -i "s/&lt;Client Phone&gt;/$clientphone/g" meta.xml
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "Chain of Custody for $cases.odt" *
+	cp "Chain of Custody for $cases.odt" ~/Cases/$cases/
+	cd ~/Cases/$cases/
+	_stopwatch; echo "$stopwatch: Opening Chain-of-Custody." >> ~/Cases/$cases/audit.log
+	libreoffice "Chain of Custody for $cases.odt" &
+}
+
+_PresL() {
+	#Run Tool
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	rm -rf ~/Cases/$cases/Temp/PL/*
+	mkdir ~/Cases/$cases/Temp/PL
+	cd ~/Cases/$cases/Temp/PL
+	_stopwatch; echo "$stopwatch: Building Preservation Letter." >> ~/Cases/$cases/audit.log
+	template="/home/csi/Documents/Templates/Preservation-Letter-Template.odt"
+	unzip $template
+	thepres=$(zenity --forms --title="Enter the Service Provider's Information" --text="Enter Service Provider Info" \
+		--add-entry="Name of Provider" \
+		--add-entry="Point of Contact" \
+		--add-entry="Address" \
+		--add-entry="City" \
+		--add-entry="State" \
+		--add-entry="Zip Code" \
+		--add-entry="Contact Number")
+	pname=$(echo $thepres | cut -f1 -d"|")
+	ppoc=$(echo $thepres | cut -f2 -d"|")
+	paddy=$(echo $thepres | cut -f3 -d"|")
+	pcity=$(echo $thepres | cut -f4 -d"|")
+	pstate=$(echo $thepres | cut -f5 -d"|")
+	pzip=$(echo $thepres | cut -f6 -d"|")
+	pnum=$(echo $thepres | cut -f7 -d"|")
+	
+	sed -i "s/&lt;Provider Name&gt;/$pname/g" meta.xml
+	sed -i "s/&lt;Provider PoC&gt;/$ppoc/g" meta.xml
+	sed -i "s/&lt;Provider Address&gt;/$paddy/g" meta.xml
+	sed -i "s/&lt;Provider City&gt;/$pcity/g" meta.xml
+	sed -i "s/&lt;Provider State&gt;/$pstate/g" meta.xml
+	sed -i "s/&lt;Provider Zip&gt;/$pzip/g" meta.xml
+	sed -i "s/&lt;Provider Number&gt;/$pnum/g" meta.xml
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Client&gt;/$client/g" meta.xml
+	sed -i "s/&lt;Client Address&gt;/$clientaddy/g" meta.xml
+	sed -i "s/&lt;Client City&gt;/$clientcity/g" meta.xml
+	sed -i "s/&lt;Client State&gt;/$clientstate/g" meta.xml
+	sed -i "s/&lt;Client Zip&gt;/$clientzip/g" meta.xml
+	sed -i "s/&lt;Client Phone&gt;/$clientphone/g" meta.xml
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "Preservation Letter for $pname - $cases.odt" *
+	cp "Preservation Letter for $pname - $cases.odt" ~/Cases/$cases/
+	cd ~/Cases/$cases/
+	_stopwatch; echo "$stopwatch: Opening Preservation Letter." >> ~/Cases/$cases/audit.log
+	libreoffice "Preservation Letter for $pname - $cases.odt" &
+}
+
+_MLAT() {
+	#Run Tool
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	rm -rf ~/Cases/$cases/Temp/MLAT/*
+	mkdir ~/Cases/$cases/Temp/MLAT
+	cd ~/Cases/$cases/Temp/MLAT
+	_stopwatch; echo "$stopwatch: Building Preservation Letter." >> ~/Cases/$cases/audit.log
+	template="/home/csi/Documents/Templates/Preservation-Letter-Template.odt"
+	unzip $template
+	thepres=$(zenity --forms --title="Enter the Service Provider's Information" --text="Enter Service Provider Info" \
+		--add-entry="Name of Provider" \
+		--add-entry="Point of Contact" \
+		--add-entry="Address" \
+		--add-entry="City" \
+		--add-entry="State" \
+		--add-entry="Zip Code" \
+		--add-entry="Contact Number")
+	pname=$(echo $thepres | cut -f1 -d"|")
+	ppoc=$(echo $thepres | cut -f2 -d"|")
+	paddy=$(echo $thepres | cut -f3 -d"|")
+	pcity=$(echo $thepres | cut -f4 -d"|")
+	pstate=$(echo $thepres | cut -f5 -d"|")
+	pzip=$(echo $thepres | cut -f6 -d"|")
+	pnum=$(echo $thepres | cut -f7 -d"|")
+	
+	sed -i "s/&lt;Provider Name&gt;/$pname/g" meta.xml
+	sed -i "s/&lt;Provider PoC&gt;/$ppoc/g" meta.xml
+	sed -i "s/&lt;Provider Address&gt;/$paddy/g" meta.xml
+	sed -i "s/&lt;Provider City&gt;/$pcity/g" meta.xml
+	sed -i "s/&lt;Provider State&gt;/$pstate/g" meta.xml
+	sed -i "s/&lt;Provider Zip&gt;/$pzip/g" meta.xml
+	sed -i "s/&lt;Provider Number&gt;/$pnum/g" meta.xml
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Client&gt;/$client/g" meta.xml
+	sed -i "s/&lt;Client Address&gt;/$clientaddy/g" meta.xml
+	sed -i "s/&lt;Client City&gt;/$clientcity/g" meta.xml
+	sed -i "s/&lt;Client State&gt;/$clientstate/g" meta.xml
+	sed -i "s/&lt;Client Zip&gt;/$clientzip/g" meta.xml
+	sed -i "s/&lt;Client Phone&gt;/$clientphone/g" meta.xml
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "MLAT Request for $pname - $cases.odt" *
+	cp "Preservation Letter for $pname - $cases.odt" ~/Cases/$cases/
+	cd ~/Cases/$cases/
+	_stopwatch; echo "$stopwatch: Opening Preservation Letter." >> ~/Cases/$cases/audit.log
+	libreoffice "Preservation Letter for $pname - $cases.odt" &
+}
+
+_DMCA() {
+	#Run Tool
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	rm -rf ~/Cases/$cases/Temp/DMCA/*
+	mkdir ~/Cases/$cases/Temp/DMCA
+	cd ~/Cases/$cases/Temp/DMCA
+	_stopwatch; echo "$stopwatch: Building DMCA Takedown Notice." >> ~/Cases/$cases/audit.log
+	template="/home/csi/Documents/Templates/DMCA-Takedown-Letter-Template.odt"
+	unzip $template
+	thepres=$(zenity --forms --title="Enter the Service Provider's Information" --text="Enter Service Provider Info" \
+		--add-entry="Name of Provider or Website" \
+		--add-entry="Email Address of Provider")
+	pname=$(echo $thepres | cut -f1 -d"|")
+	paddy=$(echo $thepres | cut -f2 -d"|")
+	
+	sed -i "s/&lt;Provider Name&gt;/$pname/g" meta.xml
+	sed -i "s/&lt;Provider PoC&gt;/$ppoc/g" meta.xml
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Client&gt;/$client/g" meta.xml
+	sed -i "s/&lt;Client Address&gt;/$clientaddy/g" meta.xml
+	sed -i "s/&lt;Client City&gt;/$clientcity/g" meta.xml
+	sed -i "s/&lt;Client State&gt;/$clientstate/g" meta.xml
+	sed -i "s/&lt;Client Zip&gt;/$clientzip/g" meta.xml
+	sed -i "s/&lt;Client Phone&gt;/$clientphone/g" meta.xml
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "DMCA Takedown Notice for $pname - $cases.odt" *
+	cp "DMCA Takedown Notice for $pname - $cases.odt" ~/Cases/$cases/
+	cd ~/Cases/$cases/
+	_stopwatch; echo "$stopwatch: Opening Preservation Letter." >> ~/Cases/$cases/audit.log
+	libreoffice "DMCA Takedown Notice for $pname - $cases.odt" &
+}
+
+_MISSINGPERSONS() {
+	#Run Tool
+	source /opt/csitools/startcsiconfig
+	source ~/Cases/$cases/caseinfo.txt
+	rm -rf ~/Cases/$cases/Temp/MP/*
+	mkdir ~/Cases/$cases/Temp/MP
+	cd ~/Cases/$cases/Temp/MP
+	_stopwatch; echo "$stopwatch: Building Missing Persons Poster." >> ~/Cases/$cases/audit.log
+	template="/home/csi/Documents/Templates/Missing-Persons-Template.odt"
+	unzip $template
+	thepres=$(zenity --forms --title="Enter the Missing Person's Details" --text="Enter Information" \
+		--add-entry="Name of the Missing Person" \
+		--add-entry="Missing From City" \
+		--add-entry="Missing From State" \
+		--add-entry="Missing Since Date" \
+		--add-entry="Age at Disappearence" \
+		--add-entry="Identifying Marks" \
+		--add-entry="Last Known Description" \
+		--add-entry="Race" \
+		--add-entry="Sex" \
+		--add-entry="Height" \
+		--add-entry="Weight" \
+		--add-entry="Hair Color" \
+		--add-entry="Eye Color" \
+		--add-entry="Body Build" \
+		--add-entry="Police Contact")
+		
+	name=$(echo $thepres | cut -f1 -d"|")
+	city=$(echo $thepres | cut -f2 -d"|")
+	state=$(echo $thepres | cut -f3 -d"|")
+	missingdate=$(echo $thepres | cut -f4 -d"|")
+	aged=$(echo $thepres | cut -f5 -d"|")
+	marks=$(echo $thepres | cut -f6 -d"|")
+	desc=$(echo $thepres | cut -f7 -d"|")
+	race=$(echo $thepres | cut -f8 -d"|")
+	sex=$(echo $thepres | cut -f9 -d"|")
+	height=$(echo $thepres | cut -f10 -d"|")
+	weight=$(echo $thepres | cut -f11 -d"|")
+	hcolor=$(echo $thepres | cut -f12 -d"|")
+	ecolor=$(echo $thepres | cut -f13 -d"|")
+	build=$(echo $thepres | cut -f14 -d"|")
+	pcontact=$(echo $thepres | cut -f15 -d"|")
+	
+	sed -i "s/&lt;Name&gt;/$name/g" meta.xml
+	sed -i "s/&lt;Missing Since&gt;/$missingdate/g" meta.xml
+	sed -i "s/&lt;Age at Dissappearance&gt;/$aged/g" meta.xml
+	sed -i "s/&lt;Body Build&gt;/$build/g" meta.xml
+	sed -i "s/&lt;Eye Color&gt;/$ecolor/g" meta.xml
+	sed -i "s/&lt;Hair Color&gt;/$hcolor/g" meta.xml
+	sed -i "s/&lt;Height&gt;/$height/g" meta.xml
+	sed -i "s/&lt;Identifying Marks&gt;/$marks/g" meta.xml
+	sed -i "s/&lt;Last Known Description&gt;/$desc/g" meta.xml
+	sed -i "s/&lt;Police Contact&gt;/$pcontact/g" meta.xml
+	sed -i "s/&lt;Race&gt;/$race/g" meta.xml
+	sed -i "s/&lt;Sex&gt;/$sex/g" meta.xml
+	sed -i "s/&lt;Case Type&gt;/$casetype/g" meta.xml 
+	sed -i "s/&lt;Case&gt;/$cases/g" meta.xml 
+	sed -i "s/&lt;Suspect&gt;/$suspect/g" meta.xml
+	sed -i "s/&lt;Investigator&gt;/$investigator/g" meta.xml
+	sed -i "s/&lt;Agency Name&gt;/$AgencyName/g" meta.xml
+	sed -i "s/&lt;Agency Address&gt;/$AgencyAddress1/g" meta.xml 
+	sed -i "s/&lt;Agency City&gt;/$AgencyCity/g" meta.xml 
+	sed -i "s/&lt;Agency State&gt;/$AgencyState/g" meta.xml 
+	sed -i "s/&lt;Agency Country&gt;/$AgencyCountry/g" meta.xml 
+	sed -i "s/&lt;Agency Zip&gt;/$AgencyZip/g" meta.xml 
+	sed -i "s/&lt;Agency Phone&gt;/$AgencyPhone/g" meta.xml 
+	sed -i "s/&lt;Agency Email&gt;/$AgencyEmail/g" meta.xml 
+	sed -i "s/&lt;Agency Website&gt;/$AgencyWebsite/g" meta.xml
+	sed -i "s/&lt;Agency Tagline&gt;/$AgencyTagline/g" meta.xml
+	sed -i "s/&lt;Agency Classification&gt;/$AgencyClassification/g" meta.xml
+	cp $AgencyLogo Pictures/1000020100000173000001A8327B8009BAB2AE4D.png
+	zip -r "Missing Persons Poster for $name - $cases.odt" *
+	cp "Missing Persons Poster for $name - $cases.odt" ~/Cases/$cases/
+	cd ~/Cases/$cases/
+	_stopwatch; echo "$stopwatch: Opening Missing Persons Poster." >> ~/Cases/$cases/audit.log
+	libreoffice "Missing Persons Poster for $name - $cases.odt" &
+	printf "investigator='$investigator'\ncasetype='$casetype'\nclient='$client'\nclientaddy='$clientaddy'\nclientcity='$clientcity'\nclientstate='$clientstate'\nclientzip='$clientzip'\nclientphone='$clientphone'\nsuspect='$suspect'\ncases='$cases'\n" | tee /tmp/caseinfo.txt
+}
+

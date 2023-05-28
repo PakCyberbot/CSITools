@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# CSI Linux fresh start
+# bash ./freshstart
+
+key=$(zenity --password --title "Enter you SUDO password to backup and clean the system." --text "Enter you SUDO password." --width 400); echo $key
+
+timestamp=$(date +%Y-%m-%d-%H-%M)
+
+
+if [[ -d "/media/files" ]]
+then
+echo $key | sudo -S zip -9 -r /media/files/csitools.zip /opt/csitools
+echo $key | sudo -S zip -9 -r /media/files/csitools.zip /home/csi/Documents/
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /opt/csitools
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.local/share/applications
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.local/share/desktop-directories
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.local/share/icons
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.local/share/xfce4-panel-profiles
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.config/menus
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.config/xfce4
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.config/xubuntu
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/.gnome
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /usr/bin/bash-wrapper
+echo $key | sudo -S zip -9 -r /media/files/csitools22.zip /home/csi/Documents/
+echo $key | sudo -S cp /media/files/csitools22.zip /media/files/csi/csitools-$timestamp.zip
+
+fi
+
+
+startsize=`df`
+
+# echo $key | sudo -S swapoff -a
+# echo $key | sudo -S swapon -a
+
+printf 'Removing Case Data and the Downloads folder\n'
+rm -rf ~/Cases/*  # 2>&1
+rm -rf ~/Downloads/*
+
+printf 'Closing Brave\n\n'
+killall brave
+printf 'Clearing Brave Cache\n\n'
+rm -rf $HOME/.cache/BraveSoftware/Brave-Browser/Default/Cache/
+rm -rf $HOME/.cache/BraveSoftware/Brave-Browser/Default/Media\ Cache/
+
+printf 'Clearing App Cache\n\n'
+rm -rf $HOME/.autopsy/dev/var/log
+rm -rf $HOME/.clamtk
+rm -rf $HOME/.config/cherrytree
+rm -rf $HOME/.config/gedit
+rm -rf $HOME/.config/htop
+rm -rf $HOME/.config/pulse
+rm -rf $HOME/.config/screengrab
+rm -rf $HOME/.config/vokoscreenNG/log
+rm -rf $HOME/.icesoft
+rm -rf $HOME/.ssh
+rm -rf $HOME/.wget-hsts
+
+# powerup $key
+printf 'Cleaning temp files using Bleachbit\n\n'
+bleachbit --preset --clean | zenity --progress --title='Bleachbit is cleaning up garbage files as the CSI user ' --pulsate --auto-close --width=400 --height=100 --no-cancel
+printf 'Cleaning temp files using Bleachbit with Sudo\n\n'
+echo $key | sudo -S bleachbit --preset --clean | zenity --progress --title='Bleachbit is cleaning up garbage files as SUDO ' --pulsate --auto-close --width=400 --height=100 --no-cancel
+printf 'Cleaning temp files using Bleachbit with Sudo -H\n\n'
+echo $key | sudo -S -H bleachbit --preset --clean | zenity --progress --title='Bleachbit is cleaning up garbage files as SUDO ' --pulsate --auto-close --width=400 --height=100 --no-cancel
+
+printf 'Clearing logs\n\n'
+echo $key | sudo -S /opt/csitools/clearlogs
+
+cd /opt/
+echo $key | sudo -S rm -rf /var/crash/*
+
+printf 'Clearing History\n\n'
+history -c
+echo $key | sudo -S history -c
+history -c
+df -h # | zenity --text-info --width 530 --height 500
+
+printf 'Clearing APT\n\n'
+echo $key | sudo -S apt autoremove
+echo $key | sudo -S apt autoclean
+
+# echo $key | sudo -S /opt/csitools/toolsbk
+
+printf 'Filling freespace with zeros\n\n'
+echo $key | sudo -S dcfldd if=/dev/zero of=/tmp/fill 
+
+printf 'Removing fill\n\n'
+echo $key | sudo -S rm -rf /tmp/fill
+cd ~/Downloads
+
+echo $startsize
+df
+
+
+# reboot
+printf 'Reboot to finish cleanup\n'

@@ -1,0 +1,28 @@
+#!/bin/bash
+# githubuser--Given a GitHub username, pulls information about the user
+if [ $# -ne 1 ]; then
+githubuser=$(zenity --entry --width=300 --title "Case Name" --text "Enter the Github user to query:" 2> >(grep -v 'GtkDialog' >&2))
+else
+githubuser=$1
+fi
+# The -s silences curl's normally verbose output.
+curl -s "https://api.github.com/users/$githubuser" | \
+awk -F'"' '
+/\"name\":/ {
+print " - "$4" is the name of the GitHub user."
+}
+/\"followers\":/{
+split($3, a, " ")
+sub(/,/, "", a[2])
+print " - They have "a[2]" followers."
+}
+/\"following\":/{
+split($3, a, " ")
+sub(/,/, "", a[2])
+print " - They are following "a[2]" other users."
+}
+/\"created_at\":/{
+print " - Their account was created on "$4"."
+}
+'
+exit 0

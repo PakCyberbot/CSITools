@@ -1,0 +1,58 @@
+#!/bin/bash
+# CSI Gateway proxy
+# This script was built by CSI Linux to automate the process of switching on|off traffic through the CSI Gateway gateway 
+
+echo "Setting up proxy through CSI Gateway gateway.  Make sure the CSI Linux Gateway VM is running before you turn CSI Linux Analyst attempting to route through Tor"
+
+# [ "root" != "$USER" ] && exec sudo $0 "$@"
+
+if [ -z "$1" ]
+then
+      key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400); echo $key
+else
+      echo "key is set"
+	key=$1
+fi
+
+#define choices
+opt1="CSI Gateway On"
+opt2="CSI Gateway Off"
+
+test=$(ifconfig enp0s8 | grep 10.152.152.11); echo $test
+
+csigateway=$(zenity --list --title "CSI Gateway Setting" --text "What do you want to do?" --width=300 --height=125 --radiolist  --column "Choose" --column "Option" TRUE "$opt1" FALSE "$opt2" 2> >(grep -v 'GtkDialog' >&2))
+
+case $csigateway in		
+	$opt1 ) #Turn On
+		clearwebip=$(curl https://ipv4.icanhazip.com/)
+		echo $key | sudo -S ip link set enp0s3 down
+		echo $key | sudo -S  ifconfig enp0s8 10.152.152.11 netmask 255.255.255.192 up
+		echo $key | sudo -S  route add default gw 10.152.152.10
+		sleep 2
+		echo $key | sudo -S  echo "nameserver 10.152.152.10" | sudo tee /etc/resolv.conf
+		echo $key | sudo -S  systemctl restart NetworkManager
+		darkwebip=$(curl https://ipv4.icanhazip.com/)
+		echo "-----"
+		echo "Your Clearweb IP address was: " $clearwebip
+		echo "Your Tor IP address is now: " $darkwebip
+		curl ipinfo.io | tee ~/Cases/Network-data.txt
+		xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorVirtual1/workspace0/last-image -n -t string -s /opt/csitools/wallpaper/Secured.jpg
+		xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitoreDP-1/workspace0/last-image -n -t string -s /opt/csitools/wallpaper/Secured.jpg
+		sleep 10
+	;;
+	$opt2 ) #Turn Off
+		echo $key | sudo -S  ifconfig enp0s3 up
+		sleep 2
+		echo $key | sudo -S  echo "nameserver 8.8.8.8" | sudo tee /etc/resolv.conf
+		echo $key | sudo -S  systemctl restart NetworkManager
+		echo $key | sudo -S  ip link set enp0s8 down
+		sleep 2
+		echo $key | sudo -S  ifconfig enp0s8 down
+		curl ipinfo.io | tee ~/Cases/Network-data.txt
+		xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorVirtual1/workspace0/last-image -n -t string -s /opt/csitools/wallpaper/CSI-Linux-Dark.jpg
+		xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitoreDP-1/workspace0/last-image -n -t string -s /opt/csitools/wallpaper/CSI-Linux-Dark.jpg
+		sleep 10
+	esac
+
+	exit 1
+}

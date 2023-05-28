@@ -1,0 +1,36 @@
+#! /usr/bin/python3
+# -*- coding: utf-8 -*-
+
+# CSI Linux JSON Scraper
+# Copyright (C) 2021 the CSI Linux Team
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+#
+
+"""A simple web page scraper for evidence capture.
+Author: Jeremy Martin
+Date: 6/01/2021
+"""
+
+import sys
+import getopt
+import json
+
+# Opening JSON file
+f = open(sys.argv[1],'r')
+
+# returns JSON object as
+# a dictionary
+data = json.load(f)
+
+# Iterating through the json
+# list
+for i in data['data']:
+	print(i)
+	ssidval=str(i['ssid'])
+	print("SSID:              " + ssidval)
+# Closing file
+f.close()
+

@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+##CSI Management System by CSI Linux v2021.2.14.5
+##tools@csilinux.com - Jeremy Martin - infosecwriter
+
+domain=$(zenity --entry --width=300 --title "Sublist3r" --text "Enter target domain name" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+echo $domain
+if [ ! -z "$domain" ]; then
+	_stopwatch; echo "$stopwatch: Running Sublist3r with bruteforce option." >> ~/Cases/$cases/audit.log
+	echo "verify legit domain"
+	if [[ $domain =~ $fqdnregex ]]; then
+		mkdir ~/Cases/$cases/Export/$domain
+
+		_stopwatch; echo "$stopwatch: Running theHarvester." >> ~/Cases/$cases/audit.log
+		#Run Tool
+		cd /opt/theHarvester
+		./theHarvester.py -d $domain -b all -f ~/Cases/$cases/Export/$domain/$timestamp-theharvester-$domain.html |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="theHarvester search, please wait...")
+		if [ -f ~/Cases/$cases/Export/$timestamp-theharvester-$domain.html  ]; then
+			screen -d -m google-chrome-stable ~/Cases/$cases/Export/$timestamp-theharvester-$domain.html	
+		fi
+		
+		_stopwatch; echo "$stopwatch: Running CSI De-Cloud analysis." >> ~/Cases/$cases/audit.log
+		#Run Tool
+		cd /opt/csitools
+		./decloud $domain | tee ~/Cases/$cases/Export/$domain/decloud-$domain.txt |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="De-Cloud search, please wait...")
+		filename=~/Cases/$cases/Export/$domain/decloud-$domain.txt
+		if test -f "$FILE"; then
+			cat ~/Cases/$cases/Export/$domain/decloud-$domain.txt | grep "Checking" | cut -d" " -f4 | sed 's/<BR>/\n/' | sort -u | tee -a ~/Cases/$cases/Export/$domain/tmp-$domain.txt
+			cat ~/Cases/$cases/Export/$domain/tmp-$domain.txt | sed 's/<BR>/\n/' | sort -u > /tmp/tmp.txt
+			cat /tmp/tmp.txt > ~/Cases/$cases/Export/$domain/tmp-$domain.txt 
+			rm /tmp/tmp.txt	
+		else
+			cat ~/Cases/$cases/Export/$domain/decloud-$domain.txt | grep "Checking" | cut -d" " -f4 | sed 's/<BR>/\n/' | sort -u | tee ~/Cases/$cases/Export/$domain/tmp-$domain.txt
+		fi
+		gedit ~/Cases/$cases/Export/$domain/tmp-$domain.txt &		
+
+		if zenity --question --text="Would you like to open the findings in a browser?"; then
+			while read links; do 
+			    echo "Opening: $links"; screen -d -m google-chrome-stable $links
+			done < $FILE
+			echo "Please wait for Chrome to open..."
+		else
+			echo "Done."
+		fi 
+		thunar /home/csi/Cases/$cases/Export/$domain >/dev/null 2>&1
+		exit
+
+
+
+	else
+		zenity --error --width=300 --text "Doesn't appear to be a legitimate domain, exiting!" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+	
+	
+fi

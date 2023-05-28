@@ -1,0 +1,1 @@
+wget csilinux.com/downloads/csitoolsupdate22.sh -O - | sh | tee /home/csi/powerup.log

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+##CSI TorBrowser update and Run by CSI Linux v2021.1.24.5
+##tools@csilinux.com - Jeremy Martin - infosecwriter
+
+key=$(zenity --password --title "SUDO is required to keep Tor Browser up to date." --text "Enter you SUDO password." --width 400)
+
+echo $key | sudo -S apt install torbrowser-launcher -y
+
+FILE=/home/csi/.local/share/torbrowser/tbb/x86_64/tor-browser_en-US/Browser/start-tor-browser
+
+if [ -f $FILE ]
+then
+	/home/csi/.local/share/torbrowser/tbb/x86_64/tor-browser_en-US/Browser/start-tor-browser /opt/csitools/CSI-Bookmarks.html
+else
+	torbrowser-launcher
+fi
+
+
