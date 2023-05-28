@@ -7,11 +7,18 @@ from PyQt5.QtGui import *
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
 # Global variables
-if os.path.exists("agency_data.json"):
-    with open("agency_data.json", "r") as file:
-        data = json.load(file)
-        cases_folder = data.get("cases_folder", "")
-        logo_path = os.path.join("Images", "agencylogo.png")
+if not os.path.exists("agency_data.json"):
+    try:
+        subprocess.run(["python", "Agency.Wizard.py"])
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        sys.exit()
+
+with open("agency_data.json", "r") as file:
+    data = json.load(file)
+    cases_folder = data.get("cases_folder", "")
+    logo_path = os.path.join("Images", "agencylogo.png")
+
 
 base_folder = cases_folder
 case_number = 1

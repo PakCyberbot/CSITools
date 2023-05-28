@@ -55,7 +55,7 @@ class Ui_QWizard(object):
         Wizard.setTabOrder(self.lineEdit_3, self.priorityme)
         Wizard.setTabOrder(self.priorityme, self.classme)
         Wizard.setTabOrder(self.classme, self.calendarWidget)
-
+        
     def create_label(self, layout, text, row, column):
         label = QtWidgets.QLabel(self.wizardPage1)
         label.setTextFormat(QtCore.Qt.PlainText)
@@ -97,6 +97,9 @@ class Ui_QWizard(object):
         json_path = os.path.join(case_directory, "case_data.json")
         with open(json_path, 'w') as f:
             json.dump(cdata, f)
+        case_name = self.lineEdit.text()
+        return case_name
+
 
     def setup_connections(self, wizard):
         wizard.button(QWizard.FinishButton).clicked.connect(self.save_data)
@@ -143,5 +146,8 @@ ui = Ui_QWizard()
 ui.setupUi(QWizard)
 load_data()
 QWizard.show()
+        # After executing the code and the wizard finishes
+sys.stdout.flush()
+
 sys.exit(app.exec_())
 
