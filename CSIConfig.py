@@ -1,13 +1,19 @@
-import os, hashlib, subprocess
+import os, hashlib, subprocess, json
 from PyQt5.QtCore import QDateTime, QUrl
 from PyQt5.QtWebEngineCore import *
 from PyQt5.QtWebEngineWidgets import *
 from urllib.parse import urlparse
 from PyQt5.QtGui import *
-subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
+# subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
 # Global variables
-base_folder = '/home/csi/Cases'
+if os.path.exists("agency_data.json"):
+    with open("agency_data.json", "r") as file:
+        data = json.load(file)
+        cases_folder = data.get("cases_folder", "")
+        logo_path = os.path.join("Images", "agencylogo.png")
+
+base_folder = cases_folder
 case_number = 1
 case = f"Case-{case_number}"
 case_directory = f"{base_folder}/{case}"
@@ -115,15 +121,12 @@ def create_case_folder(case, cases_folder):
     if not os.path.isfile(audit_log_path):
         with open(audit_log_path, 'w+') as f:
             f.write(get_current_timestamp() + " Audit log created.\n")
-        print("File already exists. Not overwriting.")
 
     history_file_path = os.path.join(case_directory, "history.txt")
 
     if not os.path.isfile(history_file_path):
         with open(history_file_path, 'w+') as f:
             f.write(get_current_timestamp() + " History file created.\n")
-    else:
-        print("File already exists. Not overwriting.")
 
     notes_file_path = os.path.join(case_directory, "notes.txt")
     with open(notes_file_path, 'w+') as f:
@@ -132,7 +135,7 @@ def create_case_folder(case, cases_folder):
 
     with open(audit_log_path, 'a') as f:
         f.write(get_current_timestamp() + " Created case folder structure.\n")
-
+    print(case_directory)
     return case_directory
 
 
