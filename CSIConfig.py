@@ -21,8 +21,12 @@ with open("agency_data.json", "r") as file:
 
 
 base_folder = cases_folder
-case_number = 1
-case = f"Case-{case_number}"
+if not case:
+    try
+        case = subprocess.run(["python", "New_Case_Wizard.py"])
+    except Exception as e:
+        print("Error")
+        sys.exit()
 case_directory = f"{base_folder}/{case}"
 audit_log_path = os.path.join(case_directory, "audit.log")
 history_file_path = os.path.join(case_directory, "history.txt")
