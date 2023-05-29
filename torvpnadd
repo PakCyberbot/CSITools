@@ -1,4 +1,0 @@
-VirtualAddrNetworkIPv4 10.192.0.0/10
-AutomapHostOnResolve 1
-TransPort 9040 IsolateClientAddr IsolateClientProtocol IsolateDestAddr IsolateDestPort
-DNSPort 5353
