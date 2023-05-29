@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 from PyQt5.QtGui import *
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
-# Global variables
+case = ""
 if not os.path.exists("agency_data.json"):
     try:
         subprocess.run(["python", "Agency.Wizard.py"])
@@ -21,12 +21,14 @@ with open("agency_data.json", "r") as file:
 
 
 base_folder = cases_folder
+
 if not case:
-    try
+    try:
         case = subprocess.run(["python", "New_Case_Wizard.py"])
     except Exception as e:
         print("Error")
         sys.exit()
+
 case_directory = f"{base_folder}/{case}"
 audit_log_path = os.path.join(case_directory, "audit.log")
 history_file_path = os.path.join(case_directory, "history.txt")
@@ -90,67 +92,6 @@ def auditme(case_directory, message):
             pass  # create empty file
     with open(audit_log_path, 'a') as f:
         f.write(get_current_timestamp() + message + "\n\r")
-
-def create_case_folder(case, cases_folder):
-    timestamp = get_current_timestamp()
-    case_directory = os.path.join(cases_folder, case)
-    if not os.path.exists(case_directory):
-        os.makedirs(case_directory)
-
-    subdirectories = [
-        "Crime Scene Photos",
-        "Supporting Documents",
-        "Supporting Documents/Evidence Intake",
-        "Evidence",
-        "Evidence/Graphics",
-        "Evidence/Video",
-        "Evidence/Forensic Images",
-        "Evidence/Virtual Machines",
-        "Evidence/RAM",
-        "Evidence/Network",
-        "Evidence/Logs",
-        "Evidence/Triage",
-        "Evidence/Online",
-        "Evidence/Online/Cryptocurrency",
-        "Evidence/Online/DarkWeb",
-        "Evidence/Online/DarkWeb/OnionShare",
-        "Evidence/Online/Domains",
-        "Evidence/Online/Social Media", 
-        "Report",
-        "Tools",
-        "Tools/Hunchly",
-        "Tools/Autopsy"
-    ]
-
-    for subdirectory in subdirectories:
-        directory_path = os.path.join(case_directory, subdirectory)
-        if not os.path.exists(directory_path):
-            os.mkdir(directory_path)
-
-    # Create audit log and history files
-    audit_log_path = os.path.join(case_directory, "audit.log")
-    if not os.path.isfile(audit_log_path):
-        with open(audit_log_path, 'w+') as f:
-            f.write(get_current_timestamp() + " Audit log created.\n")
-
-    history_file_path = os.path.join(case_directory, "history.txt")
-
-    if not os.path.isfile(history_file_path):
-        with open(history_file_path, 'w+') as f:
-            f.write(get_current_timestamp() + " History file created.\n")
-
-    notes_file_path = os.path.join(case_directory, "notes.txt")
-    with open(notes_file_path, 'w+') as f:
-        f.write("Case notes for Digital Forensics Investigation:\n" + get_current_timestamp() + "\n\n")
-        pass  # create empty file
-
-    with open(audit_log_path, 'a') as f:
-        f.write(get_current_timestamp() + " Created case folder structure.\n")
-    print(case_directory)
-    return case_directory
-
-
-
 
 def run_process_with_progress(command, progress_dialog):
     def update_progress(progress):

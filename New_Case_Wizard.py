@@ -55,7 +55,7 @@ class Ui_QWizard(object):
         Wizard.setTabOrder(self.lineEdit_3, self.priorityme)
         Wizard.setTabOrder(self.priorityme, self.classme)
         Wizard.setTabOrder(self.classme, self.calendarWidget)
-        
+
     def create_label(self, layout, text, row, column):
         label = QtWidgets.QLabel(self.wizardPage1)
         label.setTextFormat(QtCore.Qt.PlainText)
@@ -93,16 +93,71 @@ class Ui_QWizard(object):
             "case_classification": self.classme.currentText(),
             "case_date": self.calendarWidget.selectedDate().toString("yyyy-MM-dd")
         }
-        case_directory = CSIConfig.create_case_folder(case_name, cases_folder)
+        case_directory = create_case_folder(case_name, cases_folder)
         json_path = os.path.join(case_directory, "case_data.json")
         with open(json_path, 'w') as f:
             json.dump(cdata, f)
-        case_name = self.lineEdit.text()
-        return case_name
-
 
     def setup_connections(self, wizard):
         wizard.button(QWizard.FinishButton).clicked.connect(self.save_data)
+
+def create_case_folder(case, cases_folder):
+    timestamp = CSIConfig.get_current_timestamp()
+    case_directory = os.path.join(cases_folder, case)
+    if not os.path.exists(case_directory):
+        os.makedirs(case_directory)
+
+    subdirectories = [
+        "Crime Scene Photos",
+        "Supporting Documents",
+        "Supporting Documents/Evidence Intake",
+        "Evidence",
+        "Evidence/Graphics",
+        "Evidence/Video",
+        "Evidence/Forensic Images",
+        "Evidence/Virtual Machines",
+        "Evidence/RAM",
+        "Evidence/Network",
+        "Evidence/Logs",
+        "Evidence/Triage",
+        "Evidence/Online",
+        "Evidence/Online/Cryptocurrency",
+        "Evidence/Online/DarkWeb",
+        "Evidence/Online/DarkWeb/OnionShare",
+        "Evidence/Online/Domains",
+        "Evidence/Online/Social Media", 
+        "Report",
+        "Tools",
+        "Tools/Hunchly",
+        "Tools/Autopsy"
+    ]
+
+    for subdirectory in subdirectories:
+        directory_path = os.path.join(case_directory, subdirectory)
+        if not os.path.exists(directory_path):
+            os.mkdir(directory_path)
+
+    # Create audit log and history files
+    audit_log_path = os.path.join(case_directory, "audit.log")
+    if not os.path.isfile(audit_log_path):
+        with open(audit_log_path, 'w+') as f:
+            f.write(CSIConfig.get_current_timestamp() + " Audit log created.\n")
+
+    history_file_path = os.path.join(case_directory, "history.txt")
+
+    if not os.path.isfile(history_file_path):
+        with open(history_file_path, 'w+') as f:
+            f.write(CSIConfig.get_current_timestamp() + " History file created.\n")
+
+    notes_file_path = os.path.join(case_directory, "notes.txt")
+    with open(notes_file_path, 'w+') as f:
+        f.write("Case notes for Digital Forensics Investigation:\n" + CSIConfig.get_current_timestamp() + "\n\n")
+        pass  # create empty file
+
+    with open(audit_log_path, 'a') as f:
+        f.write(CSIConfig.get_current_timestamp() + " Created case folder structure.\n")
+    print(case_directory)
+    return case_directory
 
 def load_data():
     global cases_folder
@@ -146,8 +201,5 @@ ui = Ui_QWizard()
 ui.setupUi(QWizard)
 load_data()
 QWizard.show()
-        # After executing the code and the wizard finishes
-sys.stdout.flush()
-
 sys.exit(app.exec_())
 
