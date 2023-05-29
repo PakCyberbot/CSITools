@@ -113,6 +113,7 @@ def create_case_folder(case, cases_folder):
         "Supporting Documents/Evidence Intake",
         "Evidence",
         "Evidence/Graphics",
+        "Evidence/Encrypted",
         "Evidence/Video",
         "Evidence/Forensic Images",
         "Evidence/Virtual Machines",
