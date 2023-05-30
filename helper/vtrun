@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+## CSI Linux Virus Total CLI installer / launcher
+## bash ./vtrun
+
+key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	
+if [[ -f <file> ]] > /dev/null; then
+	cd /opt
+	git clone https://github.com/VirusTotal/vt-cli
+	cd vt-cli
+	make install
+fi
+vi -h
+exit
+

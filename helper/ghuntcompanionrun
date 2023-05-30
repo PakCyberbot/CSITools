@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+## CSI Linux GHunt installer / launcher
+## bash ./ghuntrun
+
+if [ ! -f /opt/ghunt/ghunt.py ]; then
+	echo "Installing GHunt"
+	cd /opt
+	git clone https://github.com/mxrch/ghunt
+	cd ghunt
+	python3 -m pip install -r requirements.txt
+	google-chrome-stable-stable https://chrome.google.com/webstore/detail/ghunt-companion/dpdcofblfbmmnikcbmmiakkclocadjab/related
+	zenity --info --text="Install the GHunt Companion for Chrome" --width=375
+fi
+
+cd /opt/ghunt/
+zenity --info --text="In the Terminal windows, press '1' to start the 'server'. You should see the server listening on 60067.\r\rThen log into Google with the Chrome window and open the GHunt Companion Extension. Choose Method 1 (server) - Launch\r\rWith the cookie captured, you can then run GHUNT\r\rPress OK to continue"  --width 400
+google-chrome-stable-stable https://google.com &
+python3 check_and_gen.py
+

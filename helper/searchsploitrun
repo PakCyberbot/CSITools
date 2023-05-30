@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+## CSI Linux msfconsole installer / launcher
+## bash metasploitrun
+
+
+if [ ! -f /opt/exploitdb/searchsploit ]; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+
+	cd /opt
+	git clone https://github.com/offensive-security/exploitdb.git
+	cd exploitdb
+	echo $key | sudo -S ln -sf /opt/exploitdb/searchsploit /usr/local/bin/searchsploit
+		
+fi
+
+clear
+cd /opt/exploitdb
+git pull
+searchsploit | more
+
+

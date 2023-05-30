@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+## CSI Linux bittorrent-forensics installer / launcher
+## bash ./bittorrentforensicsrun
+
+if ! which bittorrent-forensics > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo "Installing BitTorrent-Forensics"
+	cd /opt
+	echo $key | sudo -S git clone https://github.com/jholtmann/BitTorrent-Forensics.git
+	echo $key | sudo -S chown csi:csi BitTorrent-Forensics -R
+	cd BitTorrent-Forensics
+	echo $key | sudo -S python3 setup.py install
+	cd ..
+	echo $key | sudo -S rm -rf BitTorrent-Forensics
+fi
+
+bittorrent-forensics -h
+exit

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+## CSI Linux LittleBrother installer / launcher
+## bash ./
+
+cd /opt/LittleBrother/	
+./LittleBrother.py

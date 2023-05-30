@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+## CSI Linux OSINTGram installer / launcher
+## bash ./osintgramrun
+
+if [[ ! -f /opt/Osintgram/config/credentials.ini ]]; then
+	source ~/.bashrc
+	cd /opt
+	git clone https://github.com/Datalux/Osintgram.git
+	cd Osintgram
+	python3 -m venv venv
+	source venv/bin/activate
+	pip3 install -r requirements.txt
+	gedit config/credentials.ini
+fi
+cd /opt/Osintgram/
+echo "Running Osintgram"
+python3 -m venv venv
+source venv/bin/activate
+insta=$(zenity --entry --title "Enter the Instagram Usernam." --text "Target Instagram Account." --width 400) || python3 main.py --help
+python3 main.py $insta
+
+sleep 10
+

@@ -1,0 +1,6 @@
+#!/bin/bash
+# Proxmark3 Launcher
+
+key=$(zenity --password --title "Powerup your system with an upgrade." --text "Enter your CSI password." --width 400)
+cd /opt/proxmark3/client
+echo $key | sudo -S ./proxmark3 /dev/ttyACM0

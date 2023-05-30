@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+## CSI Linux keypassxc installer / launcher
+## bash ./keepassrun
+	
+if ! which keepassxc > /dev/null; then
+	echo $key | sudo apt-get install keepassxc -y
+fi
+keepassxc %f
+exit

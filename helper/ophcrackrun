@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+## CSI Linux ophcrack installer / launcher
+## bash ./ophcrackrun
+
+
+	
+if ! which ophcrack > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt install ophcrack -y
+fi
+ophcrack
+exit
+

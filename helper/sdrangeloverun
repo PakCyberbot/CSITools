@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+## CSI Linux blackbird installer / launcher
+## bash ./blackbird
+
+echo $SHLVL
+cd /opt/blackbird
+python3 blackbird.py
+	
+

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+## CSI Linux spiderpig installer / launcher
+## bash ./spiderpigrun
+
+if [ ! -f /opt/Storm-Breaker/Storm-Breaker.py ]; then
+	echo "Installing InSpy"
+	cd /opt
+	git clone https://github.com/leapsecurity/InSpy.git
+	cd InSpy
+	python2 -m pip install -r requirements.txt
+
+fi
+
+cd /opt/InSpy/
+python2 InSpy.py -h
+exit

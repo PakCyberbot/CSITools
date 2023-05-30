@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+## CSI Linux zaproxy installer / launcher
+## bash ./zaproxyrun
+
+
+if ! command -v zaproxy &> /dev/null
+then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo $key | sudo -S apt update
+	echo $key | sudo -S snap install zaproxy --classic
+fi
+
+zaproxy
+
+

@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+## CSI Linux VirtualBox installer / launcher
+## bash ./virtualboxrun
+
+if ! which virtualbox > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt install virtualbox -y 
+	echo $key | sudo -S apt install virtualbox-ext-pack -y
+fi
+virtualbox
+exit

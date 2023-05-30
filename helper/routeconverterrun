@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# CSI Linux RoutConverter installer / launcher
+# bash ./routconverterrun
+
+
+if [ ! -f /opt/routeconverter/RouteConverterLinux.jar ]; then
+	zenity --info --text="RouteConverterLinux not found.  Installing RouteConverter...\rThis may take several minutes.  Be patient" --width=375
+	cd /opt
+	notify-send 'Downloading RouteConverter.'
+	mkdir routeconverter
+	cd routeconverter
+	wget https://static.routeconverter.com/download/RouteConverterLinux.jar
+fi
+notify-send 'Running RouteConverter should open soon.'
+/usr/lib/jvm/bellsoft-java8-full-amd64/bin/java -jar /opt/routeconverter/RouteConverterLinux.jar

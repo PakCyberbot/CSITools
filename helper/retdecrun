@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+## CSI Linux retdec installer / launcher
+## bash ./retdecrun
+
+if [ ! -f /opt/retdec/bin/retdec-decompiler.py ]; then
+	cd /tmp
+	wget https://github.com/avast/retdec/releases/download/v4.0/retdec-v4.0-debian-64b.tar.xz
+	tar xf retdec-v4.0-debian-64b.tar.xz
+	mv retdec /opt/
+fi
+cd /opt/retdec/
+bin/retdec-decompiler.py -h
+exit

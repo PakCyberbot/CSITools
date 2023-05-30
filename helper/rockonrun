@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+## CSI Linux blackbird installer / launcher
+## bash ./blackbird
+
+echo $SHLVL
+cd /opt/Rock-ON
+./rockon.sh

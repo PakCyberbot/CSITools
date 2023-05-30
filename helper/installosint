@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# CSI Linux OINT Installer
+
+cd /tmp
+key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400)
+
+if ! which maltego > /dev/null; then
+	cd ~/Downloads
+	wget https://maltego-downloads.s3.us-east-2.amazonaws.com/linux/Maltego.v4.2.16.13775.deb
+	echo $key | sudo dpkg -i Maltego.v4.2.16.13775.deb
+	maltegocheck
+fi
+
+echo $key | sudo -S apt update
+echo $key | sudo -S apt install debian-keyring -y
+gpg -a --export --keyring /usr/share/keyrings/debian-maintainers.gpg git@rxv.cc > deb.gpg
+echo $key | sudo apt-key add deb.gpg
+rm deb.gpg
+echo $key | sudo -S apt-key adv --keyserver keyserver.ubuntu.com --refresh-keys git@rxv.cc
+echo $key | sudo -S echo deb http://apt.vulns.sexy stable main > apt-vulns-sexy.list
+echo $key | sudo -S mv apt-vulns-sexy.list /etc/apt/sources.list.d/
+echo $key | sudo -S apt update
+echo $key | sudo -S apt upgrade -y
+echo $key | sudo -S apt install sn0int nodejs npm -y
+echo $key | sudo -S npm install -g npm
+echo $key | sudo -S gem install bundler
+
+npm install node-pre-gyp
+echo $key | sudo -S npm install canvas
+echo $key | sudo -S mkdir /usr/local/lib/node_modules/
+echo $key | sudo -S mkdir /usr/local/lib/node_modules/tiktok-scraper/
+echo $key | sudo -S mkdir /usr/local/lib/node_modules/tiktok-scraper/node_modules/
+echo $key | sudo -S mkdir /usr/local/lib/node_modules/tiktok-scraper/node_modules/canvas/
+echo $key | sudo -S mkdir /usr/local/lib/node_modules/tiktok-scraper/node_modules/canvas/.node-gyp
+echo $key | sudo -S npm i -g tiktok-scraper
+echo $key | sudo -S chown csi:csi /usr/local/lib/node_modules -R
+npm i -g tiktok-scraper
+echo $key | sudo -S chown csi:csi /usr/local/bin/tiktok-scraper -R
+
+echo $key | sudo pip3 install --upgrade pip
+pip3 install twint osrframework pyngrok dnslib icmplib passwordmeter
+
+curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+~/.poetry/bin/poetry config settings.virtualenvs.create false
+
+cd /opt
+echo $key | sudo -S git clone https://github.com/ultrasecurity/Storm-Breaker
+echo $key | sudo -S chown csi:csi Storm-Breaker -R
+cd Storm-Breaker
+echo $key | sudo -S bash linux-installer.sh
+echo $key | sudo -S pip3 install -r requirments.txt
+
+cd /opt
+echo $key | sudo -S git clone https://github.com/hatlord/Spiderpig.git
+echo $key | sudo -S chown csi:csi Spiderpig -R
+cd Spiderpig
+echo $key | sudo -S bundle install
+
+cd /opt
+echo $key | sudo -S git clone https://github.com/sham00n/buster.git
+echo $key | sudo -S chown csi:csi buster
+cd buster/
+echo $key | sudo -S python3 setup.py install
+
+cd /opt
+echo $key | sudo -S git clone https://github.com/mxrch/GHunt.git
+echo $key | sudo -S chown csi:csi GHunt -R
+cd GHunt
+echo $key | sudo -S pip3 install -r requirements.txt
+
+cd /opt
+echo $key | sudo -S git clone https://github.com/securing/DumpsterDiver.git
+echo $key | sudo -S chown csi:csi DumpsterDiver -R
+cd DumpsterDiver
+echo $key | sudo -S pip3 install -r requirements.txt
+
+cd /opt
+echo $key | sudo -S git clone https://github.com/jholtmann/BitTorrent-Forensics.git
+echo $key | sudo -S chown csi:csi BitTorrent-Forensics -R
+cd BitTorrent-Forensics
+echo $key | sudo -S python3 setup.py install
+cd ..
+echo $key | sudo -S rm -rf BitTorrent-Forensics
+
+cd /opt
+echo $key | sudo -S git clone https://github.com/thewhiteh4t/FinalRecon.git
+echo $key | sudo -S chown csi:csi FinalRecon -R
+cd FinalRecon
+printf "Installing FullRecon requirements.  This may take a few minutes..."
+pip3 install -r requirements.txt > /dev/null 2>&1
+printf "FullRecon requirements complete"
+echo "cleaning rights"
+
+echo $key | sudo -S chown csi:csi /home/csi -R
+echo $key | sudo -S chown csi:csi /opt -R
+

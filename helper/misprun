@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+## CSI Linux MISP installer / launcher
+## bash ./misprun
+
+zenity --info --text="MISP Installer and Launch utility coming soon..." --width=500

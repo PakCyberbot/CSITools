@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+## CSI Linux Linux Malware Detect installer / launcher
+## bash ./lmd
+
+key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+
+if [ ! -f /usr/local/sbin/maldet ]; then
+	cd /tmp
+	wget http://www.rfxn.com/downloads/maldetect-current.tar.gz
+	tar -xvf maldetect-current.tar.gz
+	cd maldetect-1.6.4/
+	echo $key | sudo -S ./install.sh
+fi
+echo $key | sudo -S /usr/local/sbin/maldet -h
+echo "usage: /usr/local/sbin/maldet ..."

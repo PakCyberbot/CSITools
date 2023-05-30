@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# CSI Linux XnView installer / launcher
+# bash ./xnview
+
+if ! which xnview > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	cd /tmp
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt --fix-broken install
+	notify-send 'Installing' 'Installing XnView.  This may take some time.  If the installation is successful, the program will open up.'
+	wget https://download.xnview.com/XnViewMP-linux-x64.deb
+	echo $key | sudo -S dpkg -i XnViewMP-linux-x64.deb
+	echo $key | sudo -S apt --fix-broken install
+fi
+notify-send 'Running' 'XnView should open soon.'
+xnview

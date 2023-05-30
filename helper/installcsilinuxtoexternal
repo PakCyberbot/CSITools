@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# CSI Linux install live VM to an external drive
+# Converting the VDI to RAW and imaging that to a drive is better.
+
+key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400); echo $key
+
+printf 'Removing Case Data and the Downloads folder\n'
+rm -rf ~/Cases/*  2>&1
+rm -rf ~/Downloads/*  2>&1
+powerup $key
+printf 'Cleaning temp files using Bleachbit\n'
+bleachbit --preset --clean  2>&1 | zenity --progress --title='Bleachbit is cleaning up garbage files as the CSI user ' --pulsate --auto-close --width=400 --height=100 --no-cancel
+echo $key | sudo -S -H bleachbit --preset --clean  2>&1 | zenity --progress --title='Bleachbit is cleaning up garbage files as SUDO ' --pulsate --auto-close --width=400 --height=100 --no-cancel
+echo $key | sudo -S  bleachbit --preset --clean  2>&1 | zenity --progress --title='Bleachbit is cleaning up garbage files as SUDO ' --pulsate --auto-close --width=400 --height=100 --no-cancel
+cd /opt/
+printf 'Backing up CSI Linux Tools\n'
+zip -9 ~/Downloads/csitools.zip /opt/csitools/
+history -c
+echo $key | sudo -S  history -c
+df -h # | zenity --text-info --width 530 --height 500
+echo "Filling freespace with zeros"
+dcfldd if=/dev/zero of=/tmp/fill | zenity --progress --title='Wiping freespace with zeros, then rebooting' --pulsate --auto-close --width=400 --height=100 --no-cancel
+printf 'Rebooting to finish cleanup\n'
+rm -rf /tmp/fill
+sourcedrive=$(zenity --entry --title "Enter you source drive." --text "Enter you source drive." --width 400); echo $sourcedrive
+destdrive=$(zenity --entry --title "Enter you destination drive." --text "Enter you destination drive." --width 400); echo $destdrive
+sudo dcfldd if=$sourcedrive of=$destdrive

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+## CSI Linux dumpsterdiver installer / launcher
+## bash ./dumpsterdiverrun
+
+if [ ! -f /opt/DumpsterDiver/DumpsterDiver.py ]; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo "Installing DumpsterDiver"
+	cd /opt
+	echo $key | sudo -S git clone https://github.com/securing/DumpsterDiver.git
+	echo $key | sudo -S chown csi:csi DumpsterDiver -R
+	cd DumpsterDiver
+	echo $key | sudo -S pip3 install -r requirements.txt
+fi
+
+cd /opt/DumpsterDiver
+python3 DumpsterDiver.py -h
+exit

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+## CSI Linux OpenCTI installer / launcher
+## bash ./openctirun
+
+zenity --info --text="OpenCTI Installer and Launch utility coming soon..." --width=500

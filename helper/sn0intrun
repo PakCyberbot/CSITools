@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+## CSI Linux sn0int installer / launcher
+## bash ./sn0intrun
+
+if ! which sn0int > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo $key | sudo purge sn0int
+	echo $key | sudo apt install debian-keyring
+	gpg -a --export --keyring /usr/share/keyrings/debian-maintainers.gpg kpcyrd@archlinux.org > key
+	echo $key | sudo apt-key add key
+	echo "deb [arch=amd64] https://apt.vulns.sexy stable main" > s.list
+	echo $key | sudo cp s.list /etc/apt/sources.list.d/apt-vulns-sexy.list
+	echo $key | sudo apt update
+	echo $key | sudo apt install sn0int -y
+fi
+sn0int
+exit

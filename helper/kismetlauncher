@@ -1,0 +1,7 @@
+#!/bin/bash
+# Simple Kismet Launcher
+
+kismet &
+sleep 5
+google-chrome-stable 127.0.0.1:2501
+

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+## CSI Linux keypassxc installer / launcher
+## bash ./slack
+	
+if ! which veracrypt > /dev/null; then
+key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	cd /tmp
+	wget https://launchpad.net/veracrypt/trunk/1.25.9/+download/veracrypt-1.25.9-Ubuntu-21.10-amd64.deb
+	echo $key | sudo -S apt install ./veracrypt-1.25.9-Ubuntu-21.10-amd64.deb -y
+fi
+
+veracrypt
+exit

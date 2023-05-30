@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+## CSI Linux Storm-Breaker installer / launcher
+## bash ./stormbreakerrun
+
+if [ ! -f /opt/Storm-Breaker/Storm-Breaker.py ]; then
+	echo "Installing Storm-Breaker"
+	cd /opt
+	git clone https://github.com/ultrasecurity/Storm-Breaker.git
+	cd Storm-Breaker
+	echo $key | sudo -S chmod +x install.sh
+	echo $key | sudo -S bash install.sh
+	python3 -m pip install -r requirments.txt
+fi
+
+cd /opt/Storm-Breaker/
+sudo python3 Storm-Breaker.py

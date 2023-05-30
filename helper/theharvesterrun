@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+## CSI Linux theHarvester installer / launcher
+## bash ./
+
+cd /opt/theHarvester/	
+# git pull
+python theHarvester.py

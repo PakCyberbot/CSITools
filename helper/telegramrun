@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+## CSI Linux Telegram installer / launcher
+## bash ./telegram
+
+if [ ! which telegram-desktop ]; then
+	zenity --info --text="Telegram not found.  Installing Telegram...\rThis may take several minutes.  Be patient" --width=300
+	key=$(zenity --password --title "Enter you SUDO password." --text "Enter you SUDO password." --width 400); echo $key
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt install telegram-desktop
+
+fi
+telegram-desktop

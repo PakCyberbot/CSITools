@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+## CSI Linux registry-tools installer / launcher
+## bash ./registry-toolsrun
+
+key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	
+if ! which registry-tools > /dev/null; then
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt install registry-tools -y
+fi
+registry-toolsrun -h
+exit
+

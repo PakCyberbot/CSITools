@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+## CSI Linux RecuperaBit installer / launcher
+## bash ./recuperabitrun
+
+if [ ! -f /opt/RecuperaBit/main.py ]; then
+	echo "Installing RecuperaBit"
+	cd /opt
+	git clone https://github.com/Lazza/RecuperaBit.git
+	cd RecuperaBit
+fi
+cd /opt/RecuperaBit
+python3 main.py -h
+exit

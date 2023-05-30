@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+## CSI Linux Openvas installer / launcher
+## bash ./openvasrun
+
+key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+
+if ! command -v yersinia &> /dev/null
+then
+	
+	cd /opt
+	mkdir openvas
+	cd openvas
+	wget https://raw.githubusercontent.com/yu210148/gvm_install/master/install_gvm.sh
+	echo $key | sudo -S chmod +x install_gvm.sh
+	echo $key | sudo -S ./install_gvm.sh 
+	echo $key | sudo -S ./install_gvm.sh -v 20
+	zenity --info --text="Needs to reboot"  --width 400
+	echo $key | sudo -S reboot
+fi
+
+zenity --info --text="Updating feeds"  --width 400
+/opt/gvm/sbin/greenbone-feed-sync --type SCAP
+/opt/gvm/bin/greenbone-nvt-sync
+/opt/gvm/sbin/greenbone-feed-sync --type CERT
+/opt/gvm/sbin/greenbone-feed-sync --type GVMD_DATA
+/usr/bin/sudo /opt/gvm/sbin/openvas --update-vt-info
+
+

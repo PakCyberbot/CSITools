@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+## CSI Linux TempestSRD installer / launcher
+## bash ./tempestsdrrun
+
+if [ ! -f /opt/JTempestSDR/JTempestSDR.jar ]; then
+	cd /opt
+	mkdir JTempestSDR
+	cd JTempestSDR
+	wget https://csilinux.com/downloads/JTempestSDR.jar
+fi
+cd /opt/JTempestSDR
+java -jar JTempestSDR.jar 
+exit

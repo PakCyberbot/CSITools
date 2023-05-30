@@ -1,0 +1,31 @@
+
+
+dir="/opt/autopsy"
+ 
+cd /opt
+ 
+if [ -d "$dir" -a ! -h "$dir" ]
+then
+	echo "Autopsy is already installed"
+else
+	sudo apt-get install testdisk
+	cd ~/Downloads
+	wget https://github.com/sleuthkit/autopsy/releases/download/autopsy-4.18.0/autopsy-4.18.0.zip
+	wget https://github.com/sleuthkit/sleuthkit/releases/download/sleuthkit-4.10.2/sleuthkit-java_4.10.2-1_amd64.deb
+	wget -q -O - https://download.bell-sw.com/pki/GPG-KEY-bellsoft | sudo apt-key add -
+	echo "deb [arch=amd64] https://apt.bell-sw.com/ stable main" | sudo tee /etc/apt/sou.list.d/bellsoft.list
+	sudo apt-get update
+	sudo apt-get install bellsoft-java8-full
+	export JAVA_HOME=/usr/lib/jvm/bellsoft-java8-full-amd64
+	sudo apt install ./sleuthkit-java_4.*.deb -y
+	sudo unzip autopsy-4.*
+	mv autopsy-4.18.0 /opt/
+	cd /opt
+	mv autopsy-4.18.0 autopsy
+	sudo chown csi:csi * -R
+	cd /opt/autopsy
+	sudo bash unix_setup.sh
+	sudo chmod /opt/autopsy/bin +x
+fi
+
+

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+##Helper CSI Linux by CSI Linux v2021.3.4.1
+##tools@csilinux.com - Jeremy Martin
+
+red=`tput setaf 1`
+reset=`tput sgr0`
+printf "Welcome to the Helper App\n"
+timestamp=$(date +%Y-%m-%d:%H:%M)
+closecase=$(date +%Y%m%d%H%M)
+
+source /opt/csitools/sharedfunctions
+
+Menu() {
+
+	Helper goes here
+
+}
+
+if [ -z "$1" ]
+then
+	echo "Fresh Run"
+	trap finish EXIT
+else
+	echo "$1 passed"
+fi
+
+StartCase "$1"
+echo "Case=$cases"
+Menu

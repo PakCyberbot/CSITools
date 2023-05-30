@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+## CSI Linux Thug Honeyclient installer / launcher
+## bash ./thugrun
+
+key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+
+if ! which docker > /dev/null; then
+	echo $key | sudo -S apt install docker docker.io containerd runc -y #| zenity --progress --pulsate --text="Downloading and Installing Dependencies" --auto-close
+fi
+cases=$(zenity --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+export cases=$cases
+url=$(zenity --entry --width=300 --title "URL" --text "Enter the webpage to test:" 2> >(grep -v 'GtkDialog' >&2))
+export url=$url
+mkdir /home/csi/Cases/$cases
+mkdir /home/csi/Cases/$cases/Export
+echo $key | sudo -S docker run --rm -v /home/csi/Cases/$cases/Export:/tmp/thug/logs remnux/thug -F $url

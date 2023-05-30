@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+## CSI Linux GitLeaks installer / launcher for https://github.com/zricethezav/gitleaks
+## bash ./gitleaksrun
+##tools@csilinux.com - Jeremy Martin
+
+red=`tput setaf 1`
+reset=`tput sgr0`
+printf "Welcome to the Social Media Search App\n"
+timestamp=$(date +%Y-%m-%d:%H:%M)
+closecase=$(date +%Y%m%d%H%M)
+
+source /opt/csitools/sharedfunctions
+
+Menu() {
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+
+	if ! which docker > /dev/null; then
+		echo $key | sudo -S apt update
+		echo $key | sudo -S apt install docker docker.io containerd runc -y #| zenity --progress --pulsate --text="Downloading and Installing Dependencies" --auto-close
+	fi
+	url=$(zenity --entry --width=300 --title "URL" --text "Enter the webpage to test:" 2> >(grep -v 'GtkDialog' >&2))
+	export url=$url
+	echo $key | sudo -S docker run -v ${PWD}:/my-repo zricethezav/gitleaks:latest --repo-url=$url -v | tee ~/Cases/	$cases/Social\ Media/$timestamp.txt
+}
+
+if [ -z "$1" ]
+then
+	echo "Fresh Run"
+	trap finish EXIT
+else
+	echo "$1 passed"
+fi
+
+export -f _wifissid _wifibssid
+
+StartCase "$1"
+echo "Case=$cases"
+Menu

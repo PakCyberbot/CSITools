@@ -1,0 +1,8 @@
+if ! which vmplayer > /dev/null; then
+	google-chrome-stable https://www.vmware.com/go/getplayer-linux
+	cd ~/Downloads
+	sudo chmod +rx ./VM*
+	sudo ./VM*
+	vmplayer
+fi
+

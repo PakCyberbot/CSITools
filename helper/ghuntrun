@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+## CSI Linux GHunt installer / launcher
+## bash ./ghuntrun
+
+if [ ! -f /opt/ghunt/ghunt.py ]; then
+	echo "Installing GHunt"
+	cd /opt
+	git clone https://github.com/mxrch/ghunt
+	cd ghunt
+	python3 -m pip install -r requirements.txt
+	google-chrome-stable-stable https://chrome.google.com/webstore/detail/ghunt-companion/dpdcofblfbmmnikcbmmiakkclocadjab/related
+	zenity --info --text="Install the GHunt Companion for Chrome" --width=375
+fi
+
+cd /opt/ghunt/
+echo "python3 ghunt.py 'enter module'" 
+python3 ghunt.py

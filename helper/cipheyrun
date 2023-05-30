@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+## CSI Linux ciphey installer / launcher
+## bash ./cipheyrun
+	
+if ! which ciphey > /dev/null; then
+	python3 -m pip install ciphey --upgrade
+fi
+
+cipher="$(zenity --entry --title="Ciphey Testing Tool" --text="Enter the cipher text to test:" --entry-text "VGhpcyBpcyBhIHRlc3Q=")"
+case $? in
+           0)
+           	ciphey -t $cipher;;
+           1)
+                ciphey --help;;
+          -1)
+                echo "An unexpected error has occurred."; exit;;
+esac

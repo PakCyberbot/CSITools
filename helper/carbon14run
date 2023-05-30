@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+## CSI Linux Carbon14 installer / launcher
+## bash ./carbon14run
+
+if [ ! -f /opt/Carbon14/carbon14.py ]; then
+	echo "Installing Carbon14"
+	cd /opt
+	git clone https://github.com/Lazza/Carbon14.git
+	cd Carbon14
+	python3 -m pip install tzlocal
+fi
+cd /opt/Carbon14
+python3 carbon14.py -h
+exit

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+## CSI Linux VMware Player installer / launcher
+## bash ./vmwareplayerrun
+
+if ! which vmplayer > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo $key | sudo -S apt install build-essential linux-headers-generic -y #| zenity --progress --pulsate --text="Downloading and Installing Dependencies" --auto-close
+	cd /tmp
+	echo $key | sudo -S apt install build-essential
+	wget https://csilinux.com/downloads/VMware-Player.bundle | tee | zenity --progress --pulsate --text="Downloading VMware Player" --auto-close
+	echo $key | sudo -S chmod +rx ./VMware-Player.bundle
+	echo $key | sudo -S ./VMware-Player.bundle | tee | zenity --progress --pulsate --text="Installing VMware Player" --auto-close
+fi
+vmplayer
+exit

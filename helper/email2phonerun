@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+## CSI Linux email2phonenumber installer / launcher
+## bash ./email2phonerun
+
+if [ ! -f  /opt/email2phonenumber/email2phonenumber.py ]; then
+	echo "Installing email2phonenumber"
+	cd /opt
+	pip3 install beautifulsoup4 requests
+	echo $key | sudo -S git clone https://github.com/martinvigo/email2phonenumber.git
+	echo $key | sudo -S chown csi:csi email2phonenumber -R
+	cd email2phonenumber
+	ls
+fi
+cd /opt/email2phonenumber
+python3 email2phonenumber.py
+exit

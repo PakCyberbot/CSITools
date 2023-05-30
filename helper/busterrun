@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+## CSI Linux sn0int installer / launcher
+## bash ./sn0intrun
+
+if ! which buster > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo "Installing Buster"
+	cd /opt
+	echo $key | sudo -S git clone https://github.com/sham00n/buster.git
+	echo $key | sudo -S chown csi:csi buster
+	cd buster/
+	echo $key | sudo -S python3 setup.py install
+fi
+
+buster -h
+exit
