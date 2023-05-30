@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+##YouTube DL
+
+timestamp=$(date +%Y-%m-%d:%H:%M)
+
+videodownload() {
+
+	if [ -z "$1" ]
+	then
+		cases=$(zenity --entry --width=300 --title "Case Name" --text "Enter the case to add this to:" 2> >(grep -v 'GtkDialog' >&2))
+	else
+		cases=$1
+		echo "Adding to Case $cases"
+	fi
+
+	if [ -n "$cases" ]; then
+		test=$(zenity --forms --width=400  --title="Video Downloader (YouTube not supported - DMCA)" \
+			--text="Enter target URL of the Video and the case to add it to." \
+			--add-entry="Use the entire URL (http(s)://)")
+		url=$(echo $test | cut -f1 -d"|")
+	
+		if [ ! -d "~/Cases/$cases" ]; then
+		   	mkdir ~/Cases/$cases 2>/dev/null
+			cd ~/Cases/$cases/
+		fi 	
+		/opt/csitools/case_env $cases 2>/dev/null
+		mkdir ~/Cases/$cases/Export/Screenshot 2>/dev/null
+		cd ~/Cases/$cases/Videos/
+	else
+	  	zenity --error --width=200 --text "No case entered, using the Cases folder" 2> >(grep -v 'GtkDialog' >&2)
+		exit
+	fi
+	echo "Grabbing a video from $url:$port"
+	if [ -n "$url" ]; then
+
+	youtube-dl "$url" -f 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio' --merge-output-format mp4 "$url" -o ~/Cases/$cases/Videos/"$timestamp%(title)s.%(ext)s" -i | zenity --progress --width=500 --pulsate --no-cancel --auto-close --title="Video Downloader" --text="Video being saved to ~/Cases/$cases/Videos/" 2> >(grep -v 'GtkDialog' >&2)
+
+	sleep 2
+
+	thunar ~/Cases/$cases/Videos/ >/dev/null 2>&1
+
+else
+	zenity --error --text "Missing URL, exiting"
+   	exit
+fi 
+
+	_stopwatch; echo "$stopwatch: Grabbing a screenshot from $url:$port" >> ~/Cases/$cases/audit.log
+}
+
+
+videodownload $1
+
+

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# HTTrack GUI for CSI Linux
+
+source /opt/csitools/sharedfunctions
+
+StartCase
+
+domain=$(zenity --entry --title "HTTrack CLI" --text "Enter target domain" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+domaintarget=$(echo $domain | sed 's~http[s]*://~~g')
+mkdir ~/Cases/$cases/$domaintarget 2>/dev/null
+httrack $domain -O ~/Cases/$cases/$domaintarget/mirror
+zip -r ~/Cases/$cases/$domaintarget/$domaintarget.zip ~/Cases/$cases/$domaintarget/
+cd ~/Cases/$cases/$domaintarget/
+find -type f -exec md5sum '{}' \; > ~/Cases/$cases/$domaintarget/$domaintarget.zip.md5
+sleep 3
+screen -d -m google-chrome-stable  ~/Cases/$cases/$domaintarget/mirror/index.html

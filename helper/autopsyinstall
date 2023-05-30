@@ -1,0 +1,22 @@
+key=$(zenity --password --title "Powerup your system with an upgrade." --text "Enter your CSI password." --width 400)
+cd /tmp
+rm autopsy*
+rm sleuth*
+wget https://github.com/sleuthkit/autopsy/releases/download/autopsy-4.20.0/autopsy-4.20.0.zip
+wget https://github.com/sleuthkit/sleuthkit/releases/download/sleuthkit-4.12.0/sleuthkit-java_4.12.0-1_amd64.deb
+wget https://raw.githubusercontent.com/sleuthkit/autopsy/develop/linux_macos_install_scripts/install_application.sh
+wget https://raw.githubusercontent.com/sleuthkit/autopsy/develop/linux_macos_install_scripts/install_prereqs_ubuntu.sh
+echo $key | sudo -S apt purge sleuthkit-java
+echo $key | sudo -S chmod +x install_prereqs_ubuntu.sh
+echo $key | sudo -S ./install_prereqs_ubuntu.sh
+echo $key | sudo -S apt install ./sleuthkit-java_4.12.0-1_amd64.deb
+echo $key | sudo -S chmod +x install_application.sh
+
+rm -rf /opt/autopsy
+rm -rf ~/.autopsy
+./install_application.sh -z ./autopsy-4.20.0.zip -i /opt/autopsy -j /usr/lib/jvm//bellsoft-java8-full-amd64
+
+cd /opt
+cd autopsy
+mv autopsy-4.20.0/* ./
+bin/autopsy --nosplash

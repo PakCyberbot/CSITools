@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+## CSI Linux asnapis installer / launcher
+## bash ./asnapisrun
+
+if [ ! -f /opt/asnips/asnapis ]; then
+	echo "Installing asnapis"
+	cd /opt
+	git clone https://github.com/mrrobot1o1/asnips.git
+	cd asnips
+	chmod +x asnips
+fi
+
+cd /opt/asnips
+asnips -h
+exit

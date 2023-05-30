@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+## CSI Linux Kubernetes installer / launcher
+## bash ./kubernetesrun
+
+key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	
+if ! which kubeadm > /dev/null; then
+	cd /tmp
+	curl https://packages.cloud.google.com/apt/doc/apt-key.gpg --output k.gpg
+	echo $key | sudo -S apt-key add k.gpg
+	rm k.gpg
+	echo $key | sudo -S apt-add-repository "deb http://apt.kubernetes.io/ kubernetes-xenial main"
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt install kubeadm kubelet kubectl -y
+	echo $key | sudo -S apt-mark hold kubeadm kubelet kubectl
+fi
+echo $key | sudo -S kubeadm
+exit
+

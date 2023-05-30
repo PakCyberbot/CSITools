@@ -1,0 +1,11 @@
+cd /opt/spiderfoot
+printf "Please wait while we load Spiderfoot...\n"
+printf "...\n"
+cd /opt/spiderfoot/
+pringf "python3 ./sf.py -l 127.0.0.1:5441 &"
+python3 ./sf.py -l 127.0.0.1:5441 &
+printf "waiting 5 seconds before browser launch"
+sleep 5
+google-chrome-stable http://127.0.0.1:5441
+printf "Opening Chrome"
+

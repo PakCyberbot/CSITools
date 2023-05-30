@@ -7,30 +7,21 @@ if [[ ! -f /opt/dradis-ce/LICENSE.txt ]]; then
 	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
 	cd /tmp
 	echo "Installing Ruby 2.7.2 for Dradis Requirement"
-	rbenv install 2.7.2 -s
-	rbenv global 2.7.2
-	gem install bundler
-	echo "Entering Dradis"
-	echo $key | sudo -S mkdir /usr/lib/dradis-ce
-	echo $key | sudo -S mkdir /usr/lib/dradis-ce/ruby
-	echo $key | sudo -S mkdir /usr/lib/dradis-ce/ruby/2.7.0
-	echo $key | sudo -S mkdir /usr/lib/dradis-ce/ruby/2.7.2
-	echo $key | sudo -S mkdir /usr/lib/dradis-ce/ruby/2.7.0/cache
-	echo $key | sudo -S chown csi:csi /usr/lib/dradis-ce -R
-	echo $key | sudo -S apt install --only-upgrade bundler
+	rbenv install 2.7.2 -f
 	cd /opt
 	git clone https://github.com/dradis/dradis-ce.git
 	cd dradis-ce/
+	echo "Entering Dradis"
+	mkdir /usr/lib/dradis-ce
+	echo $key | sudo -S apt install --only-upgrade bundler
+	echo $key | sudo -S gem install bundler
 	echo "Installing Dradis"
-	/home/csi/.rbenv/versions/2.7.2/bin/bundle install --path /usr/lib/dradis-ce/
+	bundle install --path /usr/lib/dradis-ce/
 	echo "Finishing Dradis Install"
 	./bin/setup
 fi
-/home/csi/.rbenv/bin/rbenv global 2.7.2
 cd /opt/dradis-ce/
 echo "Running Dradis"
-/home/csi/.rbenv/versions/2.7.2/bin/bundle exec rails server &
-echo "Waiting for Dradis."
-sleep 20
-echo "Opening Dradis."
+bundle exec rails server &
+sleep 5
 google-chrome-stable http://localhost:3000

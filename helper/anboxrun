@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+## CSI Linux anbox installer / launcher
+## bash ./anboxrun
+
+echo "Starting Android in a Box"
+	
+if ! which anbox > /dev/null; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	notify-send 'Installing' 'Installing Android in a Box.  This may take some time.'
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt install wget curl lzip tar unzip squashfs-tools -y
+	echo $key | sudo -S snap install --beta --devmode anbox
+	cd /tmp
+	notify-send 'Installing' 'Installing Google Playstore.  This may take some time. '
+	wget https://raw.githubusercontent.com/geeks-r-us/anbox-playstore-installer/master/install-playstore.sh
+	echo $key | sudo -S chmod +x install-playstore.sh
+	./install-playstore.sh
+fi
+notify-send 'Running' 'Running Android in a Box.  This may take some time.'
+anbox.appmgr
+exit

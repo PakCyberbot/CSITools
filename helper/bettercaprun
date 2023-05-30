@@ -1,0 +1,20 @@
+#!/bin/sh
+
+
+if ! which bettercap; then
+	key=$(zenity --password --title "Enter you SUDO password to start the install." --text "Enter you SUDO password." --width 400)
+	echo "Installing bettercap"
+	echo $key | sudo -S apt update
+	echo $key | sudo -S apt install golang git build-essential libpcap-dev libusb-1.0-0-dev libnetfilter-queue-dev -y
+	go get -u github.com/bettercap/bettercap
+	echo $key | sudo -S bettercap -eval "caplets.update; ui.update; q"
+	echo $key | sudo -S /bin/sed -i 's/set https.server.port 443/set https.server.port 5443/g' /usr/local/share/bettercap/caplets/https-ui.cap
+	echo $key | sudo -S /bin/sed -i 's/set api.rest.username user/set api.rest.username csi/g' /usr/local/share/bettercap/caplets/https-ui.cap
+	echo $key | sudo -S /bin/sed -i 's/set api.rest.password pass/set api.rest.password csi/g' /usr/local/share/bettercap/caplets/https-ui.cap
+fi
+
+bettercap --help
+echo $key | sudo -S bettercap -caplet http-ui
+sleep 5
+google-chrome-stable https://127.0.0.1:5443
+

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# OnionSearch GUI for CSI Linux
+
+source /opt/csitools/sharedfunctions
+
+StartCase
+
+searchterm=$(zenity --entry --title "Onion Search" --text "Enter the keyword to search for" --entry-text "" 2> >(grep -v 'GtkDialog' >&2))
+mkdir ~/Cases/$cases/Export 2>/dev/null
+mkdir ~/Cases/$cases/Export/DarkWeb 2>/dev/null
+onionsearch "$searchterm" --output "~/Cases/$cases/Export/DarkWeb/$searchterm.txt"
+onionsearch2html ~/Cases/$cases/Export/DarkWeb/$searchterm.txt > ~/Cases/$cases/Export/DarkWeb/$searchterm.html
+google-chrome-stable-stable ~/Cases/$cases/Export/DarkWeb/$searchterm.html
+

@@ -1,0 +1,140 @@
+#!/usr/bin/env bash
+##check for and install Autopsy
+
+red=`tput setaf 1`
+reset=`tput sgr0`
+printf "Welcome to the Case Management integration with Autopsy\n"
+timestamp=$(date +%Y-%m-%d:%H:%M)
+closecase=$(date +%Y%m%d%H%M)
+
+source /opt/csitools/sharedfunctions
+	
+Menu() {
+
+	opencasetype=$(yad --question --width 350 --height 100 --title "Opening a Case" \
+	    --text="   Welcome to the CSI Case Management System Autopsy Integration.   \n   This application allows you to Open a new case in Autopsy or import   \n   a current case into Autopsy as LogicalFileSets" \
+	    --button="Start New Case:3" \
+	    --button="Import Existing CSI Linux Case:2" \
+	    --button="Cancel:1" \
+	    --on-top \
+	    --center \
+	)	
+	
+	case $? in
+	 	3) #yes
+			thecase=$(zenity --forms --title="Starting a new case" --text="Enter the Case Information" \
+				--add-entry="Enter the case to add this to" \
+				--add-entry="Investigator Name" \
+				--add-entry="Case Type (OSINT/SOCMINT/Dark Web/Digital Forensic Investigation..." \
+				--add-entry="Enter the client name for the report:" \
+				--add-entry="Enter the client address:" \
+				--add-entry="Enter the client city:" \
+				--add-entry="Enter the client state:" \
+				--add-entry="Enter the client zip:" \
+				--add-entry="Enter the client phone number:" \
+				--add-entry="Enter the suspect name in the case:")
+			cases=$(echo $thecase | cut -f1 -d"|")
+			investigator=$(echo $thecase | cut -f2 -d"|")
+			casetype=$(echo $thecase | cut -f3 -d"|")
+			client=$(echo $thecase | cut -f4 -d"|")
+			clientaddy=$(echo $thecase | cut -f5 -d"|")
+			clientcity=$(echo $thecase | cut -f6 -d"|")
+			clientstate=$(echo $thecase | cut -f7 -d"|")
+			clientzip=$(echo $thecase | cut -f8 -d"|")
+			clientphone=$(echo $thecase | cut -f9 -d"|")
+			suspect=$(echo $thecase | cut -f9 -10"|")
+			
+			printf "investigator='$investigator'\ncasetype='$casetype'\nclient='$client'\nclientaddy='$clientaddy'\nclientcity='$clientcity'\nclientstate='$clientstate'\nclientzip='$clientzip'\nclientphone='$clientphone'\nsuspect='$suspect'\ncases='$cases'\n" | tee /tmp/caseinfo.txt
+			StartCase $cases |tee >(zenity --progress --pulsate --no-cancel --auto-close --text="Please wait...")
+			sleep 3
+			mkdir ~/Cases/$cases/Tools/Autopsy
+			/opt/autopsy/bin/autopsy --createCase --caseName=$cases --caseBaseDir="/home/csi/Cases/$cases/Tools/Autopsy"
+			mv ~/Cases/$cases/Tools/Autopsy/$cases* ~/Cases/$cases/Tools/Autopsy/$cases
+			/opt/autopsy/bin/autopsy ~/Cases/$cases/Tools/Autopsy/$cases/$cases.aut
+			;;
+		2) #Open Case
+		
+			folder=$(zenity --width=400 --file-selection --title="Choose the folder in Cases folder for the case you want to use:" --filename=$HOME/Cases/ --directory)
+			case $? in
+				0) cases=$(basename $folder);;
+				1) 
+					zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+					exit;;
+				-1) 	  	
+					zenity --error --width=200 --text "No case entered, exiting" 2> >(grep -v 'GtkDialog' >&2)
+					exit;;
+			esac
+			StartCase $cases
+			if [[ ! -f ~/Cases/$cases/Tools/Autopsy/$cases/$cases.aut ]]; then
+				mkdir ~/Cases/$cases/Tools/Autopsy
+				cd ~/Cases/$cases
+				
+				/opt/autopsy/bin/autopsy --createCase --caseName=$cases --caseBaseDir="/home/csi/Cases/$cases/Tools/Autopsy"
+				mv ~/Cases/$cases/Tools/Autopsy/$cases* ~/Cases/$cases/Tools/Autopsy/$cases
+				
+				mv ~/Cases/$cases/Tools/Autopsy/$cases* ~/Cases/$cases/Tools/Autopsy/$cases
+				find . -type d -empty -delete
+				for f in *; do
+		   			if [ -d "$f" ]; then
+						echo "$f is a directory"
+						#if [ $f = "Tools" ]; then
+						if [[ $f =~ ^(Tools|Reports|Forensic\ Evidence\ Images)$ ]]; then 
+							echo "Layer 1"
+						else
+							echo "Adding $f as a logical file set in Autopsy"
+							/opt/autopsy/bin/autopsy --caseDir="/home/csi/Cases/$cases/Tools/Autopsy/$cases" --addDataSource --dataSourcePath="/home/csi/Cases/$cases/$f" --runIngest
+						fi
+		    			fi
+				done
+			else
+				echo "Autopsy already built"
+			fi
+			/opt/autopsy/bin/autopsy ~/Cases/$cases/Tools/Autopsy/$cases/$cases.aut
+			;;
+		*) #Oops
+			echo "You did not pick either option. exiting"
+			exit
+			;;
+		-1) #Oops
+			echo "You did not pick either option. exiting"
+			exit
+			;;
+	esac
+
+	echo "finished"
+}
+
+
+export -f StartCase _stopwatch _Check-Case 
+
+FILE=/opt/autopsy/bin/autopsy
+if [ -f "$FILE" ]; then
+    Menu
+else 
+    key=$(zenity --password --title "Enter you SUDO password to start the upgrade." --text "Enter you SUDO password." --width 400)
+    echo "$FILE does not exist."
+    echo "Installing..."
+    cd /tmp
+    wget https://csilinux.com/downloads/autopsy-4.19.2.zip
+    wget https://csilinux.com/downloads/sleuthkit-java_4.11.1-1_amd64.deb
+    wget https://download.bell-sw.com/pki/GPG-KEY-bellsoft 
+    cat GPG-KEY-bellsoft | gpg --dearmor | sudo tee /usr/share/keyrings/bellsoft-archive-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/bellsoft-archive-keyring.gpg arch=amd64] https://apt.bell-sw.com/ stable main" | sudo tee /etc/apt/sources.list.d/bellsoft.list
+    echo $key | sudo -S apt update
+    echo $key | sudo -S apt install bellsoft-java8-full -y
+    echo $key | sudo -S apt install ./sleuthkit-java_4.11.1-1_amd64.deb -y
+    echo "export JAVA_HOME=/usr/lib/jvm/bellsoft-java8-full-amd64" | tee -a ~/.bashrc
+    export JAVA_HOME=/usr/lib/jvm/bellsoft-java8-full-amd64
+    source ~/.bashrc   
+    unzip autopsy-4.19.2 && rm autopsy-4.19.2.zip
+    mv autopsy-4.19.2 /opt/autopsy
+    echo $key | sudo -S chmod +x /opt/autopsy/bin/autopsy
+    cd /opt/autopsy
+    bash unix_setup.sh
+    find . -type f -name '*.exe' -delete
+    find . -type f -name '*.dll' -delete
+    bin/autopsy --nosplash
+fi
+
+
+
