@@ -41,12 +41,12 @@ if not args.case:
         print("Error:", e)
         sys.exit()
 else:
-    print(f"Path to cases_folder {cases_folder}")
-
+    case_directory = os.path.join(cases_folder, case)
+    
 # Define case directories
 case_evidence = os.path.join(case_directory, "Evidence", "Folder")
 os.makedirs(case_evidence, exist_ok=True)
-timestamp = sharedfunctions.get_current_timestamp()
+timestamp = get_current_timestamp()
 auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
 
 # Use auditme(case_directory, "Message goes here") everytime you do something to keep the audit trail
