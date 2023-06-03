@@ -10,7 +10,23 @@ from datetime import datetime
 from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
 from PyQt5.QtGui import QImage, QPalette, QBrush
 
-subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
+
+
+if not os.path.exists("agency_data.json"):
+    try:
+        subprocess.run(["python", "Agency.Wizard.py"])
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        sys.exit()
+
+with open("agency_data.json", "r") as file:
+    data = json.load(file)
+    cases_folder = data.get("cases_folder")
+    print(cases_folder)
+    logo_path = os.path.join("Images", "agencylogo.png")
+
+
+# subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
 class DragDropWidget(QWidget):
     def __init__(self, case, computer_name, parent=None):
@@ -78,16 +94,19 @@ class DragDropWidget(QWidget):
                 shutil.copytree(path, destination)
             message = audit_me(self.audit_file, f"Added  {path} to the Evidence Vault")
 
+def get_current_timestamp(timestamp=None):
+    if timestamp is None:
+        timestamp = QDateTime.currentDateTime().toString('yyyy-MM-dd:hh:mm:ss.zzz')
+    else:
+        timestamp = QDateTime.fromString(timestamp, 'yyyy-MM-dd:hh:mm').toString('yyyy-MM-dd:hh:mm:ss.zzz')
+    return f"{timestamp}"
 
-
-def audit_me(audit_file_path, message):
-    """Appends the given message to the audit file at the given path."""
-    timestamp = QDateTime.currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
-    message = f"[{timestamp}] {message}"
-    with open(audit_file_path, "a") as f:
-        f.write(message + "\n")
-    return message
-
-
+def auditme(case_directory, message):
+    audit_log_path = os.path.join(case_directory, "audit.log")
+    if not os.path.isfile(audit_log_path):
+        with open(audit_log_path, 'w+') as f:
+            pass  # create empty file
+    with open(audit_log_path, 'a') as f:
+        f.write(get_current_timestamp() + message + "\n")
 
 

@@ -4,23 +4,8 @@ from PyQt5.QtWebEngineCore import *
 from PyQt5.QtWebEngineWidgets import *
 from urllib.parse import urlparse
 from PyQt5.QtGui import *
+
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
-
-case = ""
-if not os.path.exists("agency_data.json"):
-    try:
-        subprocess.run(["python", "Agency.Wizard.py"])
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
-        sys.exit()
-
-with open("agency_data.json", "r") as file:
-    data = json.load(file)
-    cases_folder = data.get("cases_folder", "")
-    logo_path = os.path.join("Images", "agencylogo.png")
-
-
-base_folder = cases_folder
 
 if not case:
     try:
@@ -29,14 +14,6 @@ if not case:
         print("Error")
         sys.exit()
 
-case_directory = f"{base_folder}/{case}"
-audit_log_path = os.path.join(case_directory, "audit.log")
-history_file_path = os.path.join(case_directory, "history.txt")
-notes_file_path = os.path.join(case_directory, "notes.txt")
-homepage = "https://csilinux.com"
-
-
-homepage = "https://csilinux.com"
 
 # Configuration settings
 app_name = "CSI Case Management System v.1.20230518.1"
@@ -74,25 +51,7 @@ def save_notes(base_folder, case_directory, notes):
                 f.write(get_current_timestamp() + "Saved Investigator Notes.\n\r") 
     except:
         pass
-
-
-
-def get_current_timestamp(timestamp=None):
-    if timestamp is None:
-        timestamp = QDateTime.currentDateTime().toString('yyyy-MM-dd:hh:mm:ss.zzz')
-    else:
-        timestamp = QDateTime.fromString(timestamp, 'yyyy-MM-dd:hh:mm').toString('yyyy-MM-dd:hh:mm:ss.zzz')
-    return f"({timestamp})"
-    
-
-def auditme(case_directory, message):
-    audit_log_path = os.path.join(case_directory, "audit.log")
-    if not os.path.isfile(audit_log_path):
-        with open(audit_log_path, 'w+') as f:
-            pass  # create empty file
-    with open(audit_log_path, 'a') as f:
-        f.write(get_current_timestamp() + message + "\n\r")
-
+  
 def run_process_with_progress(command, progress_dialog):
     def update_progress(progress):
         progress_dialog.setValue(progress)
