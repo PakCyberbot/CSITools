@@ -4,7 +4,7 @@ import shutil
 from PyQt5.QtWidgets import QApplication, QWizard, QFileDialog
 from PyQt5 import QtCore, QtGui, QtWidgets
 import json
-import CSIConfig
+import sharedfunctions
 
 class Ui_QWizard(object):
     def __init__(self):
@@ -102,7 +102,7 @@ class Ui_QWizard(object):
         wizard.button(QWizard.FinishButton).clicked.connect(self.save_data)
 
 def create_case_folder(case, cases_folder):
-    timestamp = CSIConfig.get_current_timestamp()
+    timestamp = sharedfunctions.get_current_timestamp()
     case_directory = os.path.join(cases_folder, case)
     if not os.path.exists(case_directory):
         os.makedirs(case_directory)
@@ -113,7 +113,6 @@ def create_case_folder(case, cases_folder):
         "Supporting Documents/Evidence Intake",
         "Evidence",
         "Evidence/Graphics",
-        "Evidence/Encrypted",
         "Evidence/Video",
         "Evidence/Forensic Images",
         "Evidence/Virtual Machines",
@@ -142,22 +141,21 @@ def create_case_folder(case, cases_folder):
     audit_log_path = os.path.join(case_directory, "audit.log")
     if not os.path.isfile(audit_log_path):
         with open(audit_log_path, 'w+') as f:
-            f.write(CSIConfig.get_current_timestamp() + " Audit log created.\n")
+            f.write(sharedfunctions.get_current_timestamp() + " Audit log created.\n")
 
     history_file_path = os.path.join(case_directory, "history.txt")
 
     if not os.path.isfile(history_file_path):
         with open(history_file_path, 'w+') as f:
-            f.write(CSIConfig.get_current_timestamp() + " History file created.\n")
+            f.write(sharedfunctions.get_current_timestamp() + " History file created.\n")
 
     notes_file_path = os.path.join(case_directory, "notes.txt")
     with open(notes_file_path, 'w+') as f:
-        f.write("Case notes for Digital Forensics Investigation:\n" + CSIConfig.get_current_timestamp() + "\n\n")
+        f.write("Case notes for Digital Forensics Investigation:\n" + sharedfunctions.get_current_timestamp() + "\n\n")
         pass  # create empty file
 
     with open(audit_log_path, 'a') as f:
-        f.write(CSIConfig.get_current_timestamp() + " Created case folder structure.\n")
-    print(case_directory)
+        f.write(sharedfunctions.get_current_timestamp() + " Created case folder structure.\n")
     return case_directory
 
 def load_data():
