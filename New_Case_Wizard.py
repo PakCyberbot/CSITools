@@ -82,7 +82,7 @@ class Ui_QWizard(object):
         Wizard.setWindowTitle(_translate("Wizard", "Starting a Case"))
 
     def save_data(self):
-        global cases_folder
+
         case_name = self.lineEdit.text()
     
         cdata = {
@@ -97,6 +97,7 @@ class Ui_QWizard(object):
         json_path = os.path.join(case_directory, "case_data.json")
         with open(json_path, 'w') as f:
             json.dump(cdata, f)
+        print(case_directory)
 
     def setup_connections(self, wizard):
         wizard.button(QWizard.FinishButton).clicked.connect(self.save_data)
@@ -156,6 +157,7 @@ def create_case_folder(case, cases_folder):
 
     with open(audit_log_path, 'a') as f:
         f.write(sharedfunctions.get_current_timestamp() + " Created case folder structure.\n")
+        
     return case_directory
 
 def load_data():

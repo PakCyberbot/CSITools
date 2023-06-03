@@ -35,7 +35,7 @@ case = args.case
 if not args.case:
     try:
         result = subprocess.run(["python", "New_Case_Wizard.py"], capture_output=True, text=True)
-        case = result.stdout.strip()  # Extract the case value from the subprocess output
+        case_directory = result.stdout.strip()  # Extract the case value from the subprocess output
         print(result)
     except Exception as e:
         print("Error:", e)
@@ -44,7 +44,6 @@ else:
     print(f"Path to cases_folder {cases_folder}")
 
 # Define case directories
-case_directory = os.path.join(cases_folder, case)
 case_evidence = os.path.join(case_directory, "Evidence", "Folder")
 os.makedirs(case_evidence, exist_ok=True)
 timestamp = sharedfunctions.get_current_timestamp()
@@ -52,17 +51,14 @@ auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
 
 # Use auditme(case_directory, "Message goes here") everytime you do something to keep the audit trail
 
-
-
-
 class csitool(QWidget):
-    def __init__(self, case, window_title):
+    def __init__(self, case_directory, window_title):
         super().__init__()
         self.case = case
         self.case_directory = case_directory
         self.case_evidence = case_evidence
         self.setWindowIcon(QIcon(icon))
-        self.setWindowTitle(window_title)  # Set the window title
+        self.setWindowTitle(f"{window_title} : Case {case_directory}")  # Set the window title
         
         # Add your GUI code here
         # ...
@@ -86,7 +82,7 @@ class csitool(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    csitool_instance = csitool(case, csitoolname)
+    csitool_instance = csitool(case_directory, csitoolname)
     csitool_instance.show()
     sys.exit(app.exec_())
 

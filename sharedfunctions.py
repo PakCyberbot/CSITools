@@ -22,7 +22,6 @@ if not os.path.exists("agency_data.json"):
 with open("agency_data.json", "r") as file:
     data = json.load(file)
     cases_folder = data.get("cases_folder")
-    print(cases_folder)
     logo_path = os.path.join("Images", "agencylogo.png")
 
 
