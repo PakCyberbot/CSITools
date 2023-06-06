@@ -34,15 +34,22 @@ else:
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description=csitoolname)
 parser.add_argument('--case', type=str, help="Path to the case directory")
-parser.add_argument('--var3', type=str, help="var3 to search")
+parser.add_argument('--var3', type=str, help="var3 to add")
 args = parser.parse_args()
 config_file = "agency_data.json"
 case = args.case
 var3 = args.var3
-if case is None:
-    print("No case provided. Exiting.")
-    sys.exit(1)
-
+if not case:
+    try:
+        result = subprocess.run(["python", "New_Case_Wizard.py"], capture_output=True, text=True)
+        case = result.stdout.strip()  # Extract the case value from the subprocess output
+        print(result)
+    except Exception as e:
+        print("Error:", e)
+        sys.exit()
+else:
+    print(f"Path to cases_folder {cases_folder}")
+ 
 if os.path.isfile(config_file):
     with open(config_file, "r") as f:
         config = json.load(f)
@@ -60,13 +67,6 @@ timestamp = get_current_timestamp()
 auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
 notes_file_path = os.path.join(case_directory, "notes.txt")
 filenametxt = os.path.join(evidence_dir, f'File_to_list_on_left.txt')
-if not os.path.exists(filenametxt):
-    with open(filenametxt, "w") as file:
-        # Optional: Add initial content to the file if desired
-        file.write("This is the initial content of the file.")
-    print(f"The file '{filenametxt}' has been created.")
-else:
-    print(f"The file '{filenametxt}' already exists.")
 var1 = "var1"
 var2= "var2"
 
@@ -101,7 +101,7 @@ class BaseCSIWidget(QWidget):
         
         # sl0 first Entry field and button layout (left side)
         self.sl0_0 = QHBoxLayout()
-        self.sl0_0_button = QPushButton(f"Search availible sites for {var3}")
+        self.sl0_0_button = QPushButton(f"Do something for {var3}")
         self.sl0_0.addWidget(self.sl0_0_button)
         self.sl0_0_button.clicked.connect(lambda: self.searchem(var2_var1_dict, var3))
         self.cmd_layout.addLayout(self.sl0_0)   
@@ -364,9 +364,12 @@ def run_script(evidence_dir):
 
 if __name__ == "__main__":
     app = BaseCSIApplication(sys.argv)
-    if var3 is None:    
-        print("No var3 provided. Exiting.")
-        sys.exit(1)
+ 
+    if var3 is None:
+        var3, ok = QInputDialog.getText(None, "Var3", "Enter the the Var3 value here:", QLineEdit.Normal, "")
+        if not ok or var3 == '':
+            sys.exit(1) 
+
     
     # Create the main window
     main_window = CSIMainWindow(case_directory, csitoolname)
