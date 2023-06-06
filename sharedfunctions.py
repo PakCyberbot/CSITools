@@ -10,8 +10,6 @@ from datetime import datetime
 from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
 from PyQt5.QtGui import QImage, QPalette, QBrush
 
-
-
 if not os.path.exists("agency_data.json"):
     try:
         subprocess.run(["python", "Agency.Wizard.py"])
@@ -38,13 +36,13 @@ class DragDropWidget(QWidget):
             os.makedirs(self.ev_dir)
         self.setAcceptDrops(True)
 
-        layout = QVBoxLayout(self)
-        layout.setSpacing(0)  # Adjust the vertical spacing here (e.g., reduce it to 0)
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(0)  # Adjust the vertical spacing here (e.g., reduce it to 0)
         self.label = QLabel("Drag and drop or click to add evidence")
         self.label.setAlignment(Qt.AlignBottom)
-        layout.addWidget(self.label)
+        self.layout.addWidget(self.label)
 
-        self.setLayout(layout)
+        self.setLayout(self.layout)
         self.setStyleSheet("""
             QLabel {
                 color: white;
@@ -102,10 +100,72 @@ def get_current_timestamp(timestamp=None):
 
 def auditme(case_directory, message):
     audit_log_path = os.path.join(case_directory, "audit.log")
-    if not os.path.isfile(audit_log_path):
-        with open(audit_log_path, 'w+') as f:
-            pass  # create empty file
-    with open(audit_log_path, 'a') as f:
+    
+    # Check if the directory exists, and create it if it doesn't
+    if not os.path.exists(case_directory):
+        os.makedirs(case_directory)
+
+    # Now it's safe to open the file
+    with open(audit_log_path, 'a+') as f:
         f.write(get_current_timestamp() + message + "\n")
+    
+    
+def create_case_folder(case_directory):
+    timestamp = get_current_timestamp()
+    if not os.path.exists(case_directory):
+        os.makedirs(case_directory)
+
+    subdirectories = [
+        "Crime Scene Photos",
+        "Supporting Documents",
+        "Supporting Documents/Evidence Intake",
+        "Evidence",
+        "Evidence/Graphics",
+        "Evidence/Video",
+        "Evidence/Forensic Images",
+        "Evidence/Virtual Machines",
+        "Evidence/RAM",
+        "Evidence/Network",
+        "Evidence/Logs",
+        "Evidence/Triage",
+        "Evidence/Online",
+        "Evidence/Online/Cryptocurrency",
+        "Evidence/Online/DarkWeb",
+        "Evidence/Online/DarkWeb/OnionShare",
+        "Evidence/Online/Domains",
+        "Evidence/Online/Social Media", 
+        "Report",
+        "Tools",
+        "Tools/Hunchly",
+        "Tools/Autopsy"
+    ]
+
+    for subdirectory in subdirectories:
+        directory_path = os.path.join(case_directory, subdirectory)
+        if not os.path.exists(directory_path):
+            os.mkdir(directory_path)
+
+    audit_log_path = os.path.join(case_directory, "audit.log")
+    if not os.path.isfile(audit_log_path):
+        with open(audit_log_path, 'a+') as f:
+            f.write(get_current_timestamp() + " Audit log created.\n")
+    
+    history_file_path = os.path.join(case_directory, "history.txt")
+    if not os.path.isfile(history_file_path):
+        with open(history_file_path, 'a+') as f:
+            f.write(get_current_timestamp() + " History file created.\n")
+    
+    notes_file_path = os.path.join(case_directory, "notes.txt")
+    if not os.path.isfile(notes_file_path):
+        with open(notes_file_path, 'a+') as f:
+            f.write("Case notes for Digital Forensics Investigation:\n" + get_current_timestamp() + "\n\n")
+    
+    with open(audit_log_path, 'a') as f:
+        f.write(get_current_timestamp() + " Verifying case folder structure.\n")
+    
 
 
+    with open(audit_log_path, 'a') as f:
+        f.write(get_current_timestamp() + " Verifying case folder structure.\n")
+        
+    return case_directory
