@@ -49,6 +49,7 @@ if not case:
         sys.exit()
 else:
     print(f"Path to cases_folder {cases_folder}")
+
  
 if os.path.isfile(config_file):
     with open(config_file, "r") as f:
@@ -57,16 +58,41 @@ if os.path.isfile(config_file):
         case_directory = os.path.join(cases_folder, case)
 else:
     case_directory = os.path.join(case)
-
-# Set up common variables used in CSI apps
 case_directory = os.path.join(cases_folder, case)
 create_case_folder(case_directory)
+  
+try:
+    # Load case_data.json
+    with open(f'{case_directory}/case_data.json', 'r') as f:
+        case_data = json.load(f)
+
+    # Store values as global variables
+    case_name = case_data['case_name']
+    investigator_name = case_data['investigator_name']
+    case_type = case_data['case_type']
+    case_priority = case_data['case_priority']
+    case_classification = case_data['case_classification']
+    case_date = case_data['case_date']
+except FileNotFoundError:
+    try:
+        result = subprocess.run(["python", "New_Case_Wizard.py"], capture_output=True, text=True)
+        case = result.stdout.strip()  # Extract the case value from the subprocess output
+        print(result)
+    except Exception as e:
+        print("Error:", e)
+        sys.exit()
+
+# Set up common variables used in CSI apps
 evidence_dir = os.path.join(case_directory, f"Evidence/Online/Folder")    # Change "Folder" to the appropriate evidence sub-folder
-os.makedirs(evidence_dir, exist_ok=True)                                 # If the "Folder" doesn't exist, create it
+os.makedirs(evidence_dir, exist_ok=True)                                  # If the "Folder" doesn't exist, create it
 timestamp = get_current_timestamp()
 auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
 notes_file_path = os.path.join(case_directory, "notes.txt")
 filenametxt = os.path.join(evidence_dir, f'File_to_list_on_left.txt')
+if not os.path.exists(filenametxt):
+    with open(filenametxt, 'w') as file:
+        # Optional: Add initial content to the file if desired
+        file.write("")
 var1 = "var1"
 var2= "var2"
 
@@ -84,11 +110,11 @@ class BaseCSIWidget(QWidget):
     This class is used to create individual GUI elements (widgets), which can be combined and arranged to build up your GUI.
     """
 
-    def __init__(self, main_window, var2_var1_dict, var1, var2, var3, *args, **kwargs):
+    def __init__(self, main_window, var2_var1_dict, var1, var2, var3, investigator_name, case_name, case_classification, case_priority, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
+        print(var2_var1_dict, var1, var2, var3, investigator_name, case_name, case_classification, case_priority)
         self.main_window = main_window
-        self.setWindowTitle(f"{csitoolname} : Case {case_directory}")
+        self.setWindowTitle(f"{csitoolname}")
         self.setWindowIcon(QIcon(icon))
 
         self.main_layout = QHBoxLayout()  # Use QHBoxLayout for controlled width layout
@@ -329,7 +355,7 @@ class CSIMainWindow(QMainWindow):
     def __init__(self, case_directory, window_title, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.case_directory = case_directory
-        self.setWindowTitle(f"{window_title} : Case {case_directory}")
+        self.setWindowTitle(f"{window_title} : Case: {case_name} - {case_classification} Priority:{case_priority}")
         self.setWindowIcon(QIcon(icon))
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
@@ -369,14 +395,12 @@ if __name__ == "__main__":
         var3, ok = QInputDialog.getText(None, "Var3", "Enter the the Var3 value here:", QLineEdit.Normal, "")
         if not ok or var3 == '':
             sys.exit(1) 
-
-    
     # Create the main window
     main_window = CSIMainWindow(case_directory, csitoolname)
     
     # Create the base CSI widget and set it as the central widget in the main window
     var2_var1_dict = run_script(evidence_dir)
-    widget = BaseCSIWidget(main_window, var2_var1_dict, var1, var2, var3)
+    widget = BaseCSIWidget(main_window, var2_var1_dict, var1, var2, var3, investigator_name, case_name, case_classification, case_priority)
     main_window.setCentralWidget(widget)
     main_window.setGeometry(100, 100, 1650, 800)
     main_window.set_application(app)

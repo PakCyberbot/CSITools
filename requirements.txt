@@ -1,0 +1,6 @@
+PyQt5
+PyQtWebEngine
+wmi
+PyQt5-sip
+pillow
+image
