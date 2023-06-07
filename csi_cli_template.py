@@ -47,7 +47,6 @@ else:
 # Parse command-line arguments
 parser = argparse.ArgumentParser(description=csitoolname)
 parser.add_argument('--case', type=str, help="Path to the case directory")
-parser.add_argument('--var3', type=str, help="var3 to add")
 args = parser.parse_args()
 config_file = "agency_data.json"
 case = args.case
