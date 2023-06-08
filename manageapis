@@ -32,10 +32,48 @@ opt16="Virus Total"
 whatcms="What CMS"
 wigle="Wigle API Name & Token"
 
+# APIKeys encryption implementation
+encrypt(){    
+	openssl aes-256-ecb -e -pbkdf2 -in /opt/csitools/APIKeys -k $1 -out /opt/csitools/APIKeys.enc
+	rm /opt/csitools/APIKeys
+}
+decrypt(){
+    openssl aes-256-ecb -d -pbkdf2 -in /opt/csitools/APIKeys.enc -k $1 &> /dev/null
+
+	if [ $? -eq 1 ]; then
+		zenity --error --text="Not able to decrypt with the given key"
+		echo "testing123 throw error"
+		clear
+		return 2
+	else
+		openssl aes-256-ecb -d -pbkdf2 -in /opt/csitools/APIKeys.enc -k $1 -out /opt/csitools/APIKeys
+	fi
+}
+
+if [[ !(-e "/opt/csitools/APIKeys.enc") ]]; then
+	compare_keys=$(zenity --forms --title "Encryption Password" --add-password="New Password" --add-password="Repeat Password" --text="Set a Password to encrypt APIKeys")
+	enckey=$(echo "$compare_keys" | cut -d"|" -f1)
+	enckey_verify=$(echo "$compare_keys" | cut -d"|" -f2)
+	if [[ "$enckey" == "$enckey_verify" ]]; then
+		encrypt $enckey
+		zenity --info --text="Your APIKeys got encrypted successfully!"
+		decrypt $enckey
+	else
+		zenity --error --text="Password not matched"
+		clear
+		exit
+	fi
+
+else
+	enckey=$(zenity --password --title "Encryption Password" --text "Enter your password to decrypt APIKeys.enc" --width 400)
+	decrypt $enckey
+	if [ $? -eq 2 ]; then
+		exit
+	fi
+fi
 
 Menu () {
-
-source /opt/csitools/APIKeys
+eval "$(openssl aes-256-ecb -d -pbkdf2 -in /opt/csitools/APIKeys.enc -k $enckey)"
 
 apikeymenu=$(zenity --list  --title "CSI Linux API Management Tool" --text "What do you want to do?" --width=1075 --height=750 --radiolist --column "Pick" --column "Option" --column "API Keys" --column "Supported Tools" \
 	FALSE "$wipeme" "" "Recon-NG, theHarvester, OSINT-Search" \
@@ -100,7 +138,9 @@ case $apikeymenu in
 	$binaryedge ) #binaryedge_api
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='binaryedge_api';"
+		decrypt $enckey
 		sed -i "s/binaryedge_api=''/binaryedge_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/sfp_binaryedge:binaryedge_api_key=/sfp_binaryedge:binaryedge_api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
 	;;
@@ -108,7 +148,9 @@ case $apikeymenu in
 	$Bing ) #Bing
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
 		sed -i "s/bingkey/$key/g" /opt/theHarvester/api-keys.yaml
+		decrypt $enckey
 		sed -i "s/bing_api=''/bing_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/sfp_bingsearch:api_key=/sfp_bingsearch:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='bing_api';"
 		Menu
@@ -117,7 +159,9 @@ case $apikeymenu in
 	$builtwith ) #BuiltWith
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='builtwith_api';"
+		decrypt $enckey
 		sed -i "s/builtwith_api=''/builtwith_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/sfp_builtwith:api_key=/sfp_builtwith:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
 	;;
@@ -125,12 +169,16 @@ case $apikeymenu in
 	$censysio ) #censysio_id
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your censysio id key" --entry-text "key value" --width 400); echo $key
 		sed -i "s/censysid/$key/g" /opt/OSINT-Search/osintSearch.config.ini
+		decrypt $enckey
 		sed -i "s/censysio_id=''/censysio_id='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/sfp_censys:censys_api_key_uid=/sfp_censys:censys_api_key_uid=$key/g" /opt/csitools/SpiderFoot.cfg
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='censysio_id';"
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your censysio Secret key" --entry-text "key value" --width 400); echo $key
 		sed -i "s/censyssecret/$key/g" /opt/OSINT-Search/osintSearch.config.ini
+		decrypt $enckey
 		sed -i "s/censysio_secret=''/censysio_secret='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/sfp_censys:censys_api_key_secret=/sfp_censys:censys_api_key_secret=$key/g" /opt/csitools/SpiderFoot.cfg
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='censysio_secret';"
 		Menu
@@ -139,14 +187,18 @@ case $apikeymenu in
 
 	$Flickr ) #Flickr
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/flickr_api=''/flickr_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='flickr_api';"
 		Menu
 	;;
 
 	$fullcontact  ) #fullcontact_api
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/fullcontact_api=''/fullcontact_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/sfp_fullcontact:api_key=/sfp_fullcontact:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='fullcontact_api';"
 		Menu
@@ -154,7 +206,9 @@ case $apikeymenu in
 
 	$Github ) #Github
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/github_api=''/github_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/githubkey/$key/g" /opt/theHarvester/api-keys.yaml
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='github_api';"
 		Menu
@@ -162,7 +216,9 @@ case $apikeymenu in
 
 	$opt4 ) #Google
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/google_api=''/google_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/sfp_googlesearch:api_key=/sfp_googlesearch:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='google_api';"
 		Menu
@@ -170,28 +226,36 @@ case $apikeymenu in
 
 	$hashes ) #hashes
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/hashes_api=''/hashes_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='hashes_api';"
 		Menu
 	;;
 
 	$hades ) #TheHadesProject
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/hades_api=''/hades_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/atiikey=''/atiikey='$key'/g" /opt/csitools/ProjectHades
 		Menu
 	;;
 
 	$hibp ) #hibp
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/hibp_api=''/hibp_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='hibp_api';"
 		Menu
 	;;
 
 	$opt6 ) #Hunter.io
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/hunter_api=''/hunter_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/hunterkey/$key/g" /opt/theHarvester/api-keys.yaml
 		sed -i "s/sfp_hunter:api_key=/sfp_hunter:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
@@ -199,14 +263,18 @@ case $apikeymenu in
 
 	$opt7 ) #intelx
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/intelxkey_api=''/intelxkey_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/intelxkey/$key/g" /opt/theHarvester/api-keys.yaml
 		Menu
 	;;
 
 	$opt8 ) #IPInfoDB
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/ipinfodb_api=''/ipinfodb_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='ipinfodb_api';"
 		sed -i "s/sfp_ipinfo:api_key=/sfp_ipinfo:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
@@ -214,7 +282,9 @@ case $apikeymenu in
 
 	$ipstack ) #ipstack_api
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/ipstack_api=''/ipstack_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='ipstack_api';"
 		sed -i "s/sfp_ipstack:api_key=/sfp_ipstack:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
@@ -222,26 +292,34 @@ case $apikeymenu in
 
 	$namechk ) #namechk_api
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/namechk_api=''/namechk_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='namechk_api';"
 		Menu
 	;;
 
 	$opt9 ) #Opencnam
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/opencnam_api=''/opencnam_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		Menu
 	;;
 
 	$opt10 ) #Pipl
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/pipl_api=''/pipl_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		Menu
 	;;
 
 	$opt11 ) #securitytrails
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/securitytrails_api=''/securitytrails_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/securitytrailskey/$key/g" /opt/theHarvester/api-keys.yaml
 		sed -i "s/sfp_securitytrails:api_key=/sfp_securitytrails:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
@@ -249,7 +327,9 @@ case $apikeymenu in
 
 	$opt12 ) #Shodan
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/shodan_api=''/shodan_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/shodankey/$key/g" /opt/theHarvester/api-keys.yaml
 		sed -i "s/shodankey/$key/g" /opt/OSINT-Search/osintSearch.config.ini
 		sed -i "s/sfp_shodan:api_key=/sfp_shodan:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
@@ -259,31 +339,41 @@ case $apikeymenu in
 
 	$opt13 ) #spyse
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/spyse_api=''/spyse_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/spysekey/$key/g" /opt/theHarvester/api-keys.yaml
 		Menu
 	;;
 
 	$opt14 ) #TowerData
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/towerdata_api=''/towerdata_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/towerdatakey/$key/g" /opt/OSINT-Search/osintSearch.config.ini
 		Menu
 	;;
 
 	$opt15 ) #Twitter
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/twitter_api=''/twitter_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='twitter_api';"
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/twitter_secret=''/twitter_secret='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='twitter_secret';"
 		Menu
 	;;
 
 	$opt16 ) #Virustotal
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/virustotal_api=''/virustotal_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sqlite3 ~/.recon-ng/keys.db "UPDATE keys SET Value = '$key' WHERE name='virustotal_api';"
 		sed -i "s/sfp_virustotal:api_key=/sfp_virustotal:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
@@ -291,7 +381,9 @@ case $apikeymenu in
 
 	$whatcms ) #whatcms
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/whatcms_api=''/whatcms_api='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		sed -i "s/whatcmskey/$key/g" /opt/OSINT-Search/osintSearch.config.ini
 		sed -i "s/sfp_whatcms:api_key=/sfp_whatcms:api_key=$key/g" /opt/csitools/SpiderFoot.cfg
 		Menu
@@ -299,12 +391,17 @@ case $apikeymenu in
 
 	$wigle ) #Wigle
 		key=$(zenity --entry --title "API Key Management for your $apikeymenu key" --text "Enter your $apikeymenu key" --entry-text "key value" --width 400); echo $key
+		decrypt $enckey
 		sed -i "s/wigleapiname=''/wigleapiname='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
+		decrypt $enckey
 		sed -i "s/wigleapitoken=''/wigleapitoken='$key'/g" /opt/csitools/APIKeys
+		encrypt $enckey
 		Menu
 	;;
 
 	$opt99 ) #Exit
+		encrypt $enckey
 		clear
 		exit
 	;;
