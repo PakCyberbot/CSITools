@@ -5,10 +5,10 @@ mkdir /home/csi/Cases/Wanted
 cd /home/csi/Cases/Wanted/
 
 # Downloading images and pdf files of 20 wanted-records
-python /opt/csitools/FBI-MostWanted/fbi-wanted.py --wanted --records 20 --dump Wanted.html
+python /opt/csitools/fbi-mostwanted/fbi-wanted.py --wanted --records 20 --dump Wanted.html
 
 browse /home/csi/Cases/Wanted/Wanted.html
 
-python /opt/csitools/FBI-MostWanted/fbi-wanted.py --wanted --records 20 --download --images --silent --slow
+python /opt/csitools/fbi-mostwanted/fbi-wanted.py --wanted --records 20 --download --images --silent --slow
 
 thunar /home/csi/Cases/Wanted
