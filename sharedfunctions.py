@@ -1,4 +1,22 @@
-
+# ----------------------------------------------------------------------------
+# CSI Linux (https://www.csilinux.com)
+# Author: Jeremy Martin
+# Copyright (C) CSI Linux. All rights reserved.
+#
+# This software is proprietary and NOT open source. Redistribution,
+# modification, or any other use of this code is strictly prohibited without
+# the express written consent of CSI Linux.
+#
+# This software is provided "AS IS" without warranty of any kind, express or
+# implied, including but not limited to the warranties of merchantability,
+# fitness for a particular purpose, and non-infringement. In no event shall
+# the authors or copyright holders be liable for any claim, damages, or other
+# liability, whether in an action of contract, tort or otherwise, arising from,
+# out of or in connection with the software or the use or other dealings in
+# the software.
+#
+# Paid support can be contracted through support@csilinux.com
+# ----------------------------------------------------------------------------
 import platform
 import argparse
 import subprocess
@@ -200,17 +218,20 @@ def csitoolsinit(case, csitoolname):
             sys.exit()
     else:
         print(f"Path to cases_folder {cases_folder}")
-
+    print(case)
     if os.path.isfile(config_file):
         with open(config_file, "r") as f:
             config = json.load(f)
             cases_folder = config.get("cases_folder")
+            print(cases_folder)
             case_directory = os.path.join(cases_folder, case)
+            print(case_directory)
     else:
         case_directory = os.path.join(case)
+        print(case_directory)
 
-    case_directory = os.path.join(cases_folder, case)
     create_case_folder(case_directory)
+    print(case_directory)
 
     # Load case_data.json
     with open(f'{case_directory}/case_data.json', 'r') as f:
