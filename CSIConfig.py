@@ -7,13 +7,6 @@ from PyQt5.QtGui import *
 
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
-if not case:
-    try:
-        case = subprocess.run(["python", "New_Case_Wizard.py"])
-    except Exception as e:
-        print("Error")
-        sys.exit()
-
 
 # Configuration settings
 app_name = "CSI Case Management System v.1.20230518.1"
@@ -21,6 +14,8 @@ app_width = 800
 app_height = 600
 icon_path = "/opt/csitools/Images/logo.png"
 tray_icon_path = "/opt/csitools/Images/CSI-Menu.png"
+homepage = "https://csilinux.com"
+
 
 # Shared
 
@@ -47,7 +42,7 @@ def save_notes(base_folder, case_directory, notes):
         else:
             with open("notes.txt", "w") as f:
                 f.write(notes)
-            with open(audit_log_path, 'a') as f:
+            with open("audit.log", 'a') as f:
                 f.write(get_current_timestamp() + "Saved Investigator Notes.\n\r") 
     except:
         pass

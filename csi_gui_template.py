@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 # ----------------------------------------------------------------------------
 # CSI Linux (https://www.csilinux.com)
-# Author: Author names here
+# Author: Author
 # Copyright (C) CSI Linux. All rights reserved.
 #
 # This software is proprietary and NOT open source. Redistribution,
@@ -103,16 +103,9 @@ except FileNotFoundError:
         sys.exit()
 
 # Set up common variables used in CSI apps
-evidence_dir = os.path.join(case_directory, f"Evidence/Online/Folder")    # Change "Folder" to the appropriate evidence sub-folder
-os.makedirs(evidence_dir, exist_ok=True)                                  # If the "Folder" doesn't exist, create it
 timestamp = get_current_timestamp()
 auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
 notes_file_path = os.path.join(case_directory, "notes.txt")
-filenametxt = os.path.join(evidence_dir, f'File_to_list_on_left.txt')
-if not os.path.exists(filenametxt):
-    with open(filenametxt, 'w') as file:
-        # Optional: Add initial content to the file if desired
-        file.write("")
 var1 = "var1"
 var2= "var2"
 
@@ -413,8 +406,17 @@ if __name__ == "__main__":
  
     if var3 is None:
         var3, ok = QInputDialog.getText(None, "Var3", "Enter the the Var3 value here:", QLineEdit.Normal, "")
-        if not ok or var3 == '':
+        if not var3 == '':
             sys.exit(1) 
+            
+    evidence_dir = os.path.join(case_directory, f"Evidence/Online/Folder")    # Change "Folder" to the appropriate evidence sub-folder
+    os.makedirs(evidence_dir, exist_ok=True)                                  # If the "Folder" doesn't exist, create it
+    filenametxt = os.path.join(evidence_dir, f'File_to_list_on_left.txt')     # File to build the left list from if you use it.
+    if not os.path.exists(filenametxt):
+        with open(filenametxt, 'w') as file:
+            # Optional: Add initial content to the file if desired
+            file.write("")
+`        
     # Create the main window
     main_window = CSIMainWindow(case_directory, csitoolname)
     

@@ -96,11 +96,11 @@ except FileNotFoundError:
         sys.exit()
 
 # Set up common variables used in CSI apps
-evidence_dir = os.path.join(case_directory, f"Evidence/Online/Folder")    # Change "Folder" to the appropriate evidence sub-folder
-os.makedirs(evidence_dir, exist_ok=True)                                  # If the "Folder" doesn't exist, create it
 timestamp = get_current_timestamp()
 auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
 notes_file_path = os.path.join(case_directory, "notes.txt")
+evidence_dir = os.path.join(case_directory, f"Evidence/Online/Folder")    # Change "Folder" to the appropriate evidence sub-folder
+os.makedirs(evidence_dir, exist_ok=True)                                  # If the "Folder" doesn't exist, create it
 filenametxt = os.path.join(evidence_dir, f'File_to_list_on_left.txt')
 if not os.path.exists(filenametxt):
     with open(filenametxt, 'w') as file:
