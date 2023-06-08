@@ -10,3 +10,10 @@ Requests
 rich==13.3.5
 rich_argparse==1.1.0
 tqdm==4.65.0
+selenium
+bs4
+stem
+pgpy
+ChromeDriverManager
+webdriver_manager
+shlex
