@@ -41,7 +41,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from PyQt5.QtCore import QThread, pyqtSignal
 from bs4 import BeautifulSoup
-
+import platform
 
 if not os.path.exists("agency_data.json"):
     try:
@@ -138,10 +138,20 @@ class ChromeThread(QThread):
 
     def run(self):
         domain = urlparse(self.url).netloc
+        
+        os_name = platform.system()
         current_dir = os.getcwd()
-        chromedriver_path = os.path.join(current_dir, 'chromedriver')
-        chrome_options = Options()
-
+        if os_name == "Windows":
+            current_dir = getattr(sys, "_MEIPASS", os.getcwd())
+            chromedriver_path = os.path.join(current_dir, "chromedriver.exe")
+            chromedriver_path = f'"{chromedriver_path}"'
+            print(f"Windows Chromedriver path: {chromedriver_path}")
+        
+        else:
+            current_dir = getattr(sys, "_MEIPASS", os.getcwd())
+            chromedriver_path = os.path.join(current_dir, "./chromedriver")
+        
+    
         if domain.endswith('.onion'):
             print("Configuring the Tor proxy...")
             tor_proxy = "127.0.0.1:9050"
@@ -149,8 +159,11 @@ class ChromeThread(QThread):
             chrome_options.add_argument(f'--proxy-server=socks5://{proxy_address}')
         else:
             print("Configuring Internet connection...")
-
-        driver = webdriver.Chrome(executable_path=chromedriver_path, options=chrome_options)
+    
+        chrome_options = Options()
+   
+        # Create the webdriver instance without using 'executable_path'
+        driver = webdriver.Chrome(options=chrome_options)
         driver.get(self.url)
 
         timestamp = get_current_timestamp()
