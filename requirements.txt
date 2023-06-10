@@ -16,4 +16,5 @@ stem
 pgpy
 ChromeDriverManager
 webdriver_manager
-shlex
+ushlex
+pyqtdarktheme
