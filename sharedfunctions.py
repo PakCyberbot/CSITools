@@ -17,27 +17,30 @@
 #
 # Paid support can be contracted through support@csilinux.com
 # ----------------------------------------------------------------------------
-import sys, argparse, os, subprocess, json, shutil, platform
+import platform
+import argparse
+import subprocess
+import sys
 import json
-from datetime import datetime
-from urllib.parse import urlparse
-from PyQt5.QtCore import QDateTime, QUrl, Qt
+import os
+from PyQt5.QtCore import QDateTime, QUrl, QThread, pyqtSignal, QCoreApplication
 from PyQt5.QtWebEngineCore import *
 from PyQt5.QtWebEngineWidgets import *
+from urllib.parse import urlparse
 from PyQt5.QtGui import *
+import sys, argparse, os, subprocess, json, shutil, platform
 from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QPlainTextEdit, QStatusBar, QInputDialog, QWizard, QWizardPage, QLineEdit, QFormLayout, QDialog, QSizePolicy
+from PyQt5.QtCore import Qt
+from datetime import datetime
 from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
 from PyQt5.QtGui import QImage, QPalette, QBrush
-from PyQt5.QtCore import QThread, pyqtSignal
+import os
+from urllib.parse import urlparse
 import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from PyQt5.QtCore import QThread, pyqtSignal
 from bs4 import BeautifulSoup
-# libs for encrypting APIKeys
-import base64
-from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 if not os.path.exists("agency_data.json"):
@@ -52,7 +55,7 @@ with open("agency_data.json", "r") as file:
     cases_folder = data.get("cases_folder")
     logo_path = os.path.join("Images", "agencylogo.png")
 
-csitools_dir='/opt/csitools/'
+
 
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
@@ -124,7 +127,7 @@ class DragDropWidget(QWidget):
 
 class ChromeThread(QThread):
     finished = pyqtSignal()
-
+    
     def __init__(self, url, main_window, evidence_dir):
         super().__init__()
         self.url = url
@@ -166,38 +169,99 @@ class ChromeThread(QThread):
         # Keep the browser window open until the thread is terminated
         self.exec_()
 
+        # Keep the event loop running while the thread is active
+        while True:
+            if not self.isRunning():
+                break
+            QCoreApplication.processEvents()
+
         driver.quit()
         self.finished.emit()
-
+        
     def save_files(self, html, base_url, evidence_dir):
         parsed_url = urlparse(base_url)
         base_path = parsed_url.netloc + parsed_url.path
         if not os.path.exists(evidence_dir):
             os.makedirs(evidence_dir)
-
-        # Save HTML file
-        html_path = os.path.join(evidence_dir, "page.html")
+    
+        # Determine the HTML filename based on the base_url
+        if base_url.endswith("/"):
+            html_filename = "index.html"
+        else:
+            html_filename = os.path.basename(base_path) + ".html"
+    
+        # Save HTML file with the appropriate filename
+        html_path = os.path.join(evidence_dir, html_filename)
         with open(html_path, "w") as f:
             f.write(html)
-
+    
         # Save all other files
         for link in BeautifulSoup(html, "html.parser").find_all("a", href=True):
             file_url = link["href"]
             if file_url.startswith(("http://", "https://")):
                 filename = file_url.rsplit("/", 1)[-1]
+    
+                # Change the file extension to ".html"
+                file_extension = filename.rsplit(".", 1)[-1]
+                if file_extension in ["php", "asp", "jsp"]:
+                    filename = filename.rsplit(".", 1)[0] + ".html"
+    
                 file_path = os.path.join(evidence_dir, base_path, filename)
                 os.makedirs(os.path.dirname(file_path), exist_ok=True)
                 self.download_file(file_url, file_path)
+    
+                # Check if the file is in a subfolder
+                if "/" in file_url and not file_url.endswith("/"):
+                    subfolder_path = os.path.join(evidence_dir, file_url)
+                    subfolder_file_path = os.path.join(subfolder_path, "index.html")
+                    os.makedirs(subfolder_path, exist_ok=True)
+                    self.download_file(file_url, subfolder_file_path)
+
+
+
+
+
+
 
     def download_file(self, url, save_path):
         try:
             response = requests.get(url, stream=True)
             response.raise_for_status()
-            with open(save_path, "wb") as f:
+    
+            # Extract the filename from the URL
+            filename = url.rsplit("/", 1)[-1]
+
+            # Check if save_path is a directory
+            if os.path.isdir(save_path):
+                # Create the file path within the directory
+                file_path = os.path.join(save_path, filename)
+            else:
+                # Use save_path as the complete destination file path
+                file_path = save_path
+    
+            # Extract the domain from the URL
+            parsed_url = urlparse(url)
+            domain = parsed_url.netloc
+    
+            # Create the directory if it doesn't exist
+            os.makedirs(save_path, exist_ok=True)
+    
+            # Construct the complete destination file path
+            file_path = os.path.join(save_path, filename)
+    
+            # Check if the file already exists
+            if os.path.exists(file_path):
+                os.remove(file_path)  # Remove the existing file
+    
+            with open(file_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
         except Exception as e:
             print(f"Failed to download file from {url}. Error: {e}")
+
+
+
+
 
 
 
@@ -215,26 +279,48 @@ def csitoolsinit(case, csitoolname):
             print("Error:", e)
             sys.exit()
     else:
-        print(f"Path to cases_folder {cases_folder}")
+        print(f"Path to cases_folder {cases_folder}")      
+        
     print(case)
     if os.path.isfile(config_file):
         with open(config_file, "r") as f:
             config = json.load(f)
             cases_folder = config.get("cases_folder")
             print(cases_folder)
-            case_directory = os.path.join(cases_folder, case)
+            case_directory = os.path.join(case)
             print(case_directory)
     else:
         case_directory = os.path.join(case)
-        print(case_directory)
+        print(f"The {config_file} was not found.  This is the case folder {case_directory}")
 
     create_case_folder(case_directory)
-    print(case_directory)
+    print(f"Created the folders: {case_directory}")
 
     # Load case_data.json
-    with open(f'{case_directory}/case_data.json', 'r') as f:
+    case_data_path = os.path.join(case_directory, "case_data.json")
+    if not os.path.isfile(case_data_path):
+
+        cdata = {
+            "case_name": case,
+            "investigator_name": csitoolname,
+            "case_type": csitoolname,
+            "case_priority": "Informational",
+            "case_classification": "Confidential",
+            "case_date": QDateTime.currentDateTime().toString("yyyy-MM-dd")
+        }
+        
+        case_directory = create_case_folder(os.path.join(cases_folder, cdata['case_name']))
+        case_data_path = os.path.join(case_directory, "case_data.json")
+
+        with open(case_data_path, 'w') as f:
+            json.dump(cdata, f)
+        print(f"Just created {case_directory}")
+
+
+            
+    with open(case_data_path, 'r') as f:
         case_data = json.load(f)
-     # Store values as global variables
+    # Store values as global variables
     case_name = case_data['case_name']
     investigator_name = case_data['investigator_name']
     case_type = case_data['case_type']
@@ -251,14 +337,11 @@ def csitoolsinit(case, csitoolname):
     print("case_date =", case_date)
 
     # Set up common variables used in CSI apps
-    case_directory = os.path.join(cases_folder, case)
-    create_case_folder(case_directory)
     timestamp = get_current_timestamp()
     auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
     notes_file_path = os.path.join(case_directory, "notes.txt")
     evidence_dir = os.path.join(case_directory, f"Evidence")    # Change "Folder" to the appropriate evidence sub-folder
     
-    #
     return case_name, investigator_name, case_type, case_priority, case_classification, case_date, cases_folder, case_directory, timestamp, notes_file_path, icon
 
 
@@ -340,59 +423,3 @@ def create_case_folder(case_directory):
         f.write(get_current_timestamp() + " Verifying case folder structure.\n")
         
     return case_directory
-
-
-#------------------------- APIKeys encryption methods --------------------------------------------#
-
-def genKey(password=0):     # generate key for Fernet() using password.
-    # genKey doesn't stores key for a better security, generates it at runtime.   
-    if password == 0:
-        password = input("Enter Password: ").encode()
-    else:
-        password = password.encode()
-    salt=b"Just4FillingTheRequirementOfPBKDF2HMAC"  
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=480000
-    )
-    derived=kdf.derive(password)
-    key = base64.urlsafe_b64encode(derived)
-    return key
-    
-def encrypt(key):
-    f = Fernet(key)
-
-    # encrypting APIKeys.json
-    with open(f'{csitools_dir}APIKeys.json', 'rb') as plain_file:
-        plain_data = plain_file.read()
-    
-    encrypted_data = f.encrypt(plain_data)
-
-    with open(f'{csitools_dir}APIKeys.enc', 'wb') as encrypted_file:
-        encrypted_file.write(encrypted_data)
-
-    # Removing plaintext data file
-    os.remove(f'{csitools_dir}APIKeys.json')
-    
-    return True
-
-def decrypt(key):
-    f = Fernet(key)
-
-    try:
-        # Decrypting APIKeys.enc
-        with open(f'{csitools_dir}APIKeys.enc', 'rb') as encrypted_file:
-            encrypted_data = encrypted_file.read()
-        
-        plain_data = f.decrypt(encrypted_data)
-
-        with open(f'{csitools_dir}APIKeys.json', 'wb') as plain_file:
-            plain_file.write(plain_data)
-    
-        return True
-    
-    except InvalidToken:
-        print("Invalid Password to Decrypt")
-        return False
