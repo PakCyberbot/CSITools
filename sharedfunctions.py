@@ -17,30 +17,27 @@
 #
 # Paid support can be contracted through support@csilinux.com
 # ----------------------------------------------------------------------------
-import platform
-import argparse
-import subprocess
-import sys
+import sys, argparse, os, subprocess, json, shutil, platform
 import json
-import os
-from PyQt5.QtCore import QDateTime, QUrl
+from datetime import datetime
+from urllib.parse import urlparse
+from PyQt5.QtCore import QDateTime, QUrl, Qt
 from PyQt5.QtWebEngineCore import *
 from PyQt5.QtWebEngineWidgets import *
-from urllib.parse import urlparse
 from PyQt5.QtGui import *
-import sys, argparse, os, subprocess, json, shutil, platform
 from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QPlainTextEdit, QStatusBar, QInputDialog, QWizard, QWizardPage, QLineEdit, QFormLayout, QDialog, QSizePolicy
-from PyQt5.QtCore import Qt
-from datetime import datetime
 from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
 from PyQt5.QtGui import QImage, QPalette, QBrush
-import os
-from urllib.parse import urlparse
+from PyQt5.QtCore import QThread, pyqtSignal
 import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from PyQt5.QtCore import QThread, pyqtSignal
 from bs4 import BeautifulSoup
+# libs for encrypting APIKeys
+import base64
+from cryptography.fernet import Fernet, InvalidToken
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 
 if not os.path.exists("agency_data.json"):
@@ -55,6 +52,7 @@ with open("agency_data.json", "r") as file:
     cases_folder = data.get("cases_folder")
     logo_path = os.path.join("Images", "agencylogo.png")
 
+csitools_dir='/opt/csitools/'
 
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
@@ -342,3 +340,59 @@ def create_case_folder(case_directory):
         f.write(get_current_timestamp() + " Verifying case folder structure.\n")
         
     return case_directory
+
+
+#------------------------- APIKeys encryption methods --------------------------------------------#
+
+def genKey(password=0):     # generate key for Fernet() using password.
+    # genKey doesn't stores key for a better security, generates it at runtime.   
+    if password == 0:
+        password = input("Enter Password: ").encode()
+    else:
+        password = password.encode()
+    salt=b"Just4FillingTheRequirementOfPBKDF2HMAC"  
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=480000
+    )
+    derived=kdf.derive(password)
+    key = base64.urlsafe_b64encode(derived)
+    return key
+    
+def encrypt(key):
+    f = Fernet(key)
+
+    # encrypting APIKeys.json
+    with open(f'{csitools_dir}APIKeys.json', 'rb') as plain_file:
+        plain_data = plain_file.read()
+    
+    encrypted_data = f.encrypt(plain_data)
+
+    with open(f'{csitools_dir}APIKeys.enc', 'wb') as encrypted_file:
+        encrypted_file.write(encrypted_data)
+
+    # Removing plaintext data file
+    os.remove(f'{csitools_dir}APIKeys.json')
+    
+    return True
+
+def decrypt(key):
+    f = Fernet(key)
+
+    try:
+        # Decrypting APIKeys.enc
+        with open(f'{csitools_dir}APIKeys.enc', 'rb') as encrypted_file:
+            encrypted_data = encrypted_file.read()
+        
+        plain_data = f.decrypt(encrypted_data)
+
+        with open(f'{csitools_dir}APIKeys.json', 'wb') as plain_file:
+            plain_file.write(plain_data)
+    
+        return True
+    
+    except InvalidToken:
+        print("Invalid Password to Decrypt")
+        return False
