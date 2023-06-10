@@ -278,17 +278,12 @@ def csitoolsinit(case, csitoolname):
         except Exception as e:
             print("Error:", e)
             sys.exit()
-    else:
-        print(f"Path to cases_folder {cases_folder}")      
-        
-    print(case)
+     
     if os.path.isfile(config_file):
         with open(config_file, "r") as f:
             config = json.load(f)
             cases_folder = config.get("cases_folder")
-            print(cases_folder)
-            case_directory = os.path.join(case)
-            print(case_directory)
+            case_directory = os.path.join(cases_folder, case)
     else:
         case_directory = os.path.join(case)
         print(f"The {config_file} was not found.  This is the case folder {case_directory}")
