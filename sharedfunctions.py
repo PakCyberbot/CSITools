@@ -42,6 +42,8 @@ from selenium.webdriver.chrome.options import Options
 from PyQt5.QtCore import QThread, pyqtSignal
 from bs4 import BeautifulSoup
 import platform
+import zipfile
+import tempfile
 
 if not os.path.exists("agency_data.json"):
     try:
@@ -431,3 +433,89 @@ def create_case_folder(case_directory):
         f.write(get_current_timestamp() + " Verifying case folder structure.\n")
         
     return case_directory
+
+
+def reportme(tmpl_path,out_path,data_dict, img_dict=None):
+    """
+    fill_template(tmpl_path, out_path, data_dict, img_list):
+        Fills in the fields of the template document with data and generates a result document.
+
+    Args:
+        tmpl_path (str): Path of the template document that contains the fields to be filled in.
+        out_path (str): Path of the resulting document with placeholders replaced by data.
+        data_dict (dict): A dictionary mapping placeholder names to their corresponding values for replacement.
+        img_list (dict): A dictionary specifying the images to replace in the document. 
+            Key: The position of the image, first image added in the document will get 0 position.
+            Value: The path to the image file.
+
+    Note:
+    - Position of Images depends on the order of adding them not the format of document.
+    - if someone adds the image first but adds it to the last page still it will gonna have 0 position.
+
+    Example:
+        tmpl_path = 'template.odt'
+        out_path = 'result.odt'
+        data_dict = {'placeholder1': 'value1', 'placeholder2': 'value2'}
+        img_list = {1: 'image1.png', 2: 'image2.png'}
+        fill_template(tmpl_path, out_path, data_dict, img_list)
+    """
+    
+    if tmpl_path.lower().endswith(".odt"):
+       
+        # Create a temporary directory to extract the ODT contents
+        temp_dir = tempfile.mkdtemp()
+
+        # Extract the ODT contents to the temporary directory
+        with zipfile.ZipFile(tmpl_path, 'r') as odt_file:
+            odt_file.extractall(temp_dir)
+
+        # Read the styles.xml file for header and footer
+        content_path = os.path.join(temp_dir, 'styles.xml')
+        with open(content_path, 'r') as content_file:
+            content = content_file.read()
+            content_file.close()
+        
+        # regex pattern to find placeholder and replace with the value
+        for placeholder, value in data_dict.items(): 
+            content = re.sub(rf'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>', value, content)
+
+        # Write the modified content back to styles.xml
+        with open(content_path, 'w') as modified_file:
+            modified_file.write(content)
+            modified_file.close()
+
+        # Read the content.xml file
+        content_path = os.path.join(temp_dir, 'content.xml')
+        with open(content_path, 'r', encoding='utf-8') as content_file:
+            content = content_file.read()
+            content_file.close()
+
+        # regex pattern to find placeholder and replace with the value
+        for placeholder, value in data_dict.items(): 
+            content = re.sub(rf'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>', value, content)
+
+        # replace the placeholder images
+        if not img_dict == None:
+            file_names = re.findall(r'"Pictures/([^"]+)"', content)
+            try:
+                for num, imgPath in img_dict.items():
+                    shutil.copy(imgPath,os.path.join(temp_dir, f'Pictures/{file_names[len(file_names)-int(num)-1]}'))
+            except IndexError:
+                print(f'You have only {len(file_names)} image/s in the doc. Index starts from 0')
+                
+        # Write the modified content back to content.xml
+        with open(content_path, 'w') as modified_file:
+            modified_file.write(content)
+            modified_file.close()
+        # Create a new ODT file with the modified content
+        with zipfile.ZipFile(out_path, 'w') as modified_odt:
+            # Add the modified content.xml back to the ODT
+            for root, _, files in os.walk(temp_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, temp_dir)
+                    modified_odt.write(file_path, arcname)
+
+        # print("Modified file saved as:", out_path)
+        # print(temp_dir)
+        shutil.rmtree(temp_dir)
