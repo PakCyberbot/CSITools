@@ -491,8 +491,46 @@ def reportme(tmpl_path,out_path,data_dict, img_dict=None):
             content_file.close()
 
         # regex pattern to find placeholder and replace with the value
-        for placeholder, value in data_dict.items(): 
-            content = re.sub(rf'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>', value, content)
+        for placeholder, value in data_dict.items():
+            # dealing with adding multi line value to the variable in xml using heavy regex
+            if '\n' in value:
+                values = value.split('\n')
+
+                main_search_string = f'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>'
+
+                occurrences = re.finditer(rf'({main_search_string})(.*?</text:p>)', content)
+
+                for count, occurrence in enumerate(occurrences):
+                    temp = re.search(rf'<.*>', occurrence.group(2))
+                    posttext = temp.group()
+                    tags = posttext.strip('</>')
+                    tags = tags.split('></')
+                    
+                    re_pretext = ''
+                    for i in range(0, len(tags)):
+                        tag = tags[len(tags) - i - 1]
+                        re_pretext += f'(<{tag}[^>]*>)'
+                        if tag == 'text:p':
+                            re_pretext += '(?:(?!<text:p).)*?'
+
+                    temp = re.search(rf'{re_pretext}({main_search_string})(.*?</text:p>)', content)
+
+                    pretext = ''
+                    for i in range(0, len(tags)):
+                        pretext += temp.group(i + 1)
+
+                    data_multiline = ''
+                    for i, val in enumerate(values):
+                        if i == 0:
+                            data_multiline += f"{val}{posttext}"
+                        elif i == len(values) - 1:
+                            data_multiline += f'{pretext}{val}'
+                        else:
+                            data_multiline += f'{pretext}{val}{posttext}'
+                    content = re.sub(re.escape(occurrence.group(1)), data_multiline, content, count=count+1)
+
+            else:
+                content = re.sub(rf'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>', value, content)
 
         # replace the placeholder images
         if not img_dict == None:
