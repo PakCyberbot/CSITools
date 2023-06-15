@@ -18,33 +18,45 @@
 # Paid support can be contracted through support@csilinux.com
 # ----------------------------------------------------------------------------
 import platform
+import traceback
 import argparse
 import subprocess
 import sys
 import json
 import os
-import re
+import random
+import socket
+import getpass
 from PyQt5.QtCore import QDateTime, QUrl, QThread, pyqtSignal, QCoreApplication
 from PyQt5.QtWebEngineCore import *
 from PyQt5.QtWebEngineWidgets import *
 from urllib.parse import urlparse
 from PyQt5.QtGui import *
-import sys, argparse, os, subprocess, json, shutil, platform
-from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QPlainTextEdit, QStatusBar, QInputDialog, QWizard, QWizardPage, QLineEdit, QFormLayout, QDialog, QSizePolicy
+
+from PyQt5.QtWidgets import (
+    QApplication, QWidget, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
+    QPlainTextEdit, QStatusBar, QInputDialog, QWizard, QWizardPage, QLineEdit, QFormLayout,
+    QDialog, QSizePolicy
+)
 from PyQt5.QtCore import Qt
+
 from datetime import datetime
-from PyQt5.QtWidgets import QLabel, QVBoxLayout, QWidget
-from PyQt5.QtGui import QImage, QPalette, QBrush
-import os
-from urllib.parse import urlparse
+
 import requests
+from bs4 import BeautifulSoup
+import shutil
+import zipfile
+import time
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from PyQt5.QtCore import QThread, pyqtSignal
-from bs4 import BeautifulSoup
-import platform
-import zipfile
-import tempfile
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
+import psutil
+
+
 
 if not os.path.exists("agency_data.json"):
     try:
@@ -57,7 +69,6 @@ with open("agency_data.json", "r") as file:
     data = json.load(file)
     cases_folder = data.get("cases_folder")
     logo_path = os.path.join("Images", "agencylogo.png")
-
 
 
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
@@ -141,20 +152,10 @@ class ChromeThread(QThread):
 
     def run(self):
         domain = urlparse(self.url).netloc
-        
-        os_name = platform.system()
         current_dir = os.getcwd()
-        if os_name == "Windows":
-            current_dir = getattr(sys, "_MEIPASS", os.getcwd())
-            chromedriver_path = os.path.join(current_dir, "chromedriver.exe")
-            chromedriver_path = f'"{chromedriver_path}"'
-            print(f"Windows Chromedriver path: {chromedriver_path}")
-        
-        else:
-            current_dir = getattr(sys, "_MEIPASS", os.getcwd())
-            chromedriver_path = os.path.join(current_dir, "./chromedriver")
-        
-    
+        chromedriver_path = os.path.join(current_dir, 'chromedriver')
+        chrome_options = Options()
+
         if domain.endswith('.onion'):
             print("Configuring the Tor proxy...")
             tor_proxy = "127.0.0.1:9050"
@@ -162,11 +163,8 @@ class ChromeThread(QThread):
             chrome_options.add_argument(f'--proxy-server=socks5://{proxy_address}')
         else:
             print("Configuring Internet connection...")
-    
-        chrome_options = Options()
-   
-        # Create the webdriver instance without using 'executable_path'
-        driver = webdriver.Chrome(options=chrome_options)
+
+        driver = webdriver.Chrome(executable_path=chromedriver_path, options=chrome_options)
         driver.get(self.url)
 
         timestamp = get_current_timestamp()
@@ -234,11 +232,6 @@ class ChromeThread(QThread):
                     self.download_file(file_url, subfolder_file_path)
 
 
-
-
-
-
-
     def download_file(self, url, save_path):
         try:
             response = requests.get(url, stream=True)
@@ -294,44 +287,27 @@ def csitoolsinit(case, csitoolname):
         except Exception as e:
             print("Error:", e)
             sys.exit()
-     
+    else:
+        print(f"Path to cases_folder {cases_folder}")
+    print(case)
     if os.path.isfile(config_file):
         with open(config_file, "r") as f:
             config = json.load(f)
             cases_folder = config.get("cases_folder")
+            print(cases_folder)
             case_directory = os.path.join(cases_folder, case)
+            print(case_directory)
     else:
         case_directory = os.path.join(case)
-        print(f"The {config_file} was not found.  This is the case folder {case_directory}")
+        print(case_directory)
 
     create_case_folder(case_directory)
-    print(f"Created the folders: {case_directory}")
+    print(case_directory)
 
     # Load case_data.json
-    case_data_path = os.path.join(case_directory, "case_data.json")
-    if not os.path.isfile(case_data_path):
-
-        cdata = {
-            "case_name": case,
-            "investigator_name": csitoolname,
-            "case_type": csitoolname,
-            "case_priority": "Informational",
-            "case_classification": "Confidential",
-            "case_date": QDateTime.currentDateTime().toString("yyyy-MM-dd")
-        }
-        
-        case_directory = create_case_folder(os.path.join(cases_folder, cdata['case_name']))
-        case_data_path = os.path.join(case_directory, "case_data.json")
-
-        with open(case_data_path, 'w') as f:
-            json.dump(cdata, f)
-        print(f"Just created {case_directory}")
-
-
-            
-    with open(case_data_path, 'r') as f:
+    with open(f'{case_directory}/case_data.json', 'r') as f:
         case_data = json.load(f)
-    # Store values as global variables
+     # Store values as global variables
     case_name = case_data['case_name']
     investigator_name = case_data['investigator_name']
     case_type = case_data['case_type']
@@ -348,11 +324,14 @@ def csitoolsinit(case, csitoolname):
     print("case_date =", case_date)
 
     # Set up common variables used in CSI apps
+    case_directory = os.path.join(cases_folder, case)
+    create_case_folder(case_directory)
     timestamp = get_current_timestamp()
     auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
     notes_file_path = os.path.join(case_directory, "notes.txt")
     evidence_dir = os.path.join(case_directory, f"Evidence")    # Change "Folder" to the appropriate evidence sub-folder
     
+    #
     return case_name, investigator_name, case_type, case_priority, case_classification, case_date, cases_folder, case_directory, timestamp, notes_file_path, icon
 
 
@@ -434,244 +413,230 @@ def create_case_folder(case_directory):
         f.write(get_current_timestamp() + " Verifying case folder structure.\n")
         
     return case_directory
-
-
-def reportme(tmpl_path,out_path,data_dict, img_dict=None):
-    """
-    fill_template(tmpl_path, out_path, data_dict, img_list):
-        Fills in the fields of the template document with data and generates a result document.
-
-    Args:
-        tmpl_path (str): Path of the template document that contains the fields to be filled in.
-        out_path (str): Path of the resulting document with placeholders replaced by data.
-        data_dict (dict): A dictionary mapping placeholder names to their corresponding values for replacement.
-        img_list (dict): A dictionary specifying the images to replace in the document. 
-            Key: The position of the image, docx and odt have different positions arrangement.
-            Value: The path to the image file.
-
-    Note:
-    - In ODT files: Position of Images depends on the order of adding them not the format of document.
-        - if someone adds the image first but adds it to the last page still it will gonna have 0 position.
-    - In DOCX files: Position of Images depends on the format of document.
-        - if someone adds the image first but adds it to the last page then it will gonna have last position.
-
-    Example:
-        tmpl_path = 'template.odt'
-        out_path = 'result.odt'
-        data_dict = {'placeholder1': 'value1', 'placeholder2': 'value2'}
-        img_list = {0: 'image1.png', 1: 'image2.png'}
-        fill_template(tmpl_path, out_path, data_dict, img_list)
-    """
     
-    if tmpl_path.lower().endswith(".odt"):
-       
-        # Create a temporary directory to extract the ODT contents
-        temp_dir = tempfile.mkdtemp()
 
-        # Extract the ODT contents to the temporary directory
-        with zipfile.ZipFile(tmpl_path, 'r') as odt_file:
-            odt_file.extractall(temp_dir)
+def get_random_browser_header():
+    browser_headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.37",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 OPR/77.0.4054.277",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.41",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36 Edg/91.0.864.48",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 OPR/77.0.4054.277",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.62",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.62",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 OPR/77.0.4054.277",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.37",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 OPR/77.0.4054.277",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.41",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.48",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62",
+    }
 
-        # Read the styles.xml file for header and footer
-        content_path = os.path.join(temp_dir, 'styles.xml')
-        with open(content_path, 'r') as content_file:
-            content = content_file.read()
-            content_file.close()
-        
-        # regex pattern to find placeholder and replace with the value
-        for placeholder, value in data_dict.items(): 
-            content = re.sub(rf'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>', value, content)
+    random_header = random.choice(list(browser_headers.keys()))
+    return {random_header: browser_headers[random_header]}
+    
+    # Feel free to add or modify the browser headers as needed.
 
-        # Write the modified content back to styles.xml
-        with open(content_path, 'w') as modified_file:
-            modified_file.write(content)
-            modified_file.close()
+from selenium.webdriver.chrome.service import Service
+from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 
-        # Read the content.xml file
-        content_path = os.path.join(temp_dir, 'content.xml')
-        with open(content_path, 'r', encoding='utf-8') as content_file:
-            content = content_file.read()
-            content_file.close()
+def ChromedriverCheck(startme, additional_options=None):
+    driver1 = None
+    driver2 = None
+    chromedriver_path = ChromeDriverManager().install()
+    def chromedriver_running():
+        # Check if chromedriver is running
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] and 'chromedriver' in proc.info['name']:
+                return True
+        return False
 
-        # regex pattern to find placeholder and replace with the value
-        for placeholder, value in data_dict.items():
-            # dealing with adding multi line value to the variable in xml using heavy regex
-            if '\n' in value:
-                values = value.split('\n')
+    def start_chromedriver():
+        # Start Chromedriver 1
+        print("Initializing WebDriver for clearnet sites...")
+        service1 = Service(chromedriver_path)
+        service1.start()
 
-                main_search_string = f'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>'
+        options1 = webdriver.ChromeOptions()
+        options1.add_argument("--headless")
+        options1.add_argument("--no-sandbox")
+        options1.add_argument("--ignore-certificate-errors")
+        options1.add_argument("--disable-gpu")
+        options1.add_argument("--window-size=1280,720")
+        options1.add_argument("--log-level=3")
 
-                occurrences = re.finditer(rf'({main_search_string})(.*?</text:p>)', content)
+        # Add additional options if provided
+        if additional_options:
+            for option in additional_options:
+                options1.add_argument(option)
 
-                for count, occurrence in enumerate(occurrences):
-                    temp = re.search(rf'<.*>', occurrence.group(2))
-                    posttext = temp.group()
-                    tags = posttext.strip('</>')
-                    tags = tags.split('></')
-                    
-                    re_pretext = ''
-                    for i in range(0, len(tags)):
-                        tag = tags[len(tags) - i - 1]
-                        re_pretext += f'(<{tag}[^>]*>)'
-                        if tag == 'text:p':
-                            re_pretext += '(?:(?!<text:p).)*?'
+        driver1 = webdriver.Chrome(service=service1, options=options1)
+        driver1.get("https://csilinux.com")
+        print("Chromedriver 1 service started.")
 
-                    temp = re.search(rf'{re_pretext}({main_search_string})(.*?</text:p>)', content)
+        # Start Chromedriver 2
+        print("Initializing WebDriver for .onion sites...")
+        service2 = Service(chromedriver_path)
+        service2.start()
 
-                    pretext = ''
-                    for i in range(0, len(tags)):
-                        pretext += temp.group(i + 1)
+        options2 = webdriver.ChromeOptions()
+        options2.add_argument("--headless")
+        options2.add_argument("--no-sandbox")
+        options2.add_argument("--ignore-certificate-errors")
+        options2.add_argument("--disable-gpu")
+        options2.add_argument("--window-size=1280,720")
+        options2.add_argument("--log-level=3")
+        options2.add_argument("--proxy-server=socks5://127.0.0.1:9050")
 
-                    data_multiline = ''
-                    for i, val in enumerate(values):
-                        if i == 0:
-                            data_multiline += f"{val}{posttext}"
-                        elif i == len(values) - 1:
-                            data_multiline += f'{pretext}{val}'
-                        else:
-                            data_multiline += f'{pretext}{val}{posttext}'
-                    content = re.sub(re.escape(occurrence.group(1)), data_multiline, content, count=count+1)
+        # Add additional options if provided
+        if additional_options:
+            for option in additional_options:
+                options2.add_argument(option)
 
+        driver2 = webdriver.Chrome(service=service2, options=options2)
+        driver2.get("https://check.torproject.org/?lang=en-US&small=1&uptodate=1")
+
+        if "Congratulations" in driver2.page_source:
+            print("Tor is properly configured.")
+        else:
+            print("Tor is not properly configured.")
+        print("Chromedriver 2 service started.")
+
+        return driver1, driver2
+
+    if startme.lower() == "on":
+        if chromedriver_running():
+            print("Chromedriver instances are already running.")
+            # Terminate the existing instances and start new ones
+            for proc in psutil.process_iter(['pid', 'name']):
+                if proc.info['name'] and proc.info['name'].startswith('chromedriver'):
+                    proc.terminate()
+            print("Existing Chromedriver instances have been stopped.")
+        driver1, driver2 = start_chromedriver()
+
+    elif startme.lower() == "off":
+        # Kill all running chromedriver processes
+        for proc in psutil.process_iter(['pid', 'name']):
+            if proc.info['name'] and proc.info['name'].startswith('chromedriver'):
+                proc.terminate()
+        print("Chromedriver instances have been stopped.")
+
+    else:
+        print("Invalid command. No action taken.")
+
+    return driver1, driver2
+
+
+
+
+
+
+	
+
+def TorCheck(Torstartme):
+    def check_tor_service(password):
+        command = ["sudo", "-S", "service", "tor", "status"]
+        result = subprocess.run(command, input=password.encode(), capture_output=True)
+        output = result.stdout.decode().lower()
+        # Check if service has exited
+        if "active: active" not in output:
+            print("Service not running")
+            return False
+        else:
+            print("Service is running")
+            return True
+
+    def check_tor_usage():
+        url = "https://check.torproject.org/?lang=en-US&small=1&uptodate=1"
+        proxies = {
+            "http": "socks5h://localhost:9050",
+            "https": "socks5h://localhost:9050",
+        }
+        try:
+            response = requests.get(url, proxies=proxies)
+            if "Congratulations" in response.text:
+                print("Tor is being used.")
             else:
-                content = re.sub(rf'<text:user-defined[^&]*?>&lt;{placeholder}&gt;</text:user-defined>', value, content)
+                print("Tor is not being used.")
+        except requests.exceptions.RequestException as e:
+            print(f"Error checking Tor usage: {e}")
 
-        # replace the placeholder images
-        if not img_dict == None:
-            file_names = re.findall(r'"Pictures/([^"]+)"', content)
+ 
+    def request_newnym():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             try:
-                for num, imgPath in img_dict.items():
-                    shutil.copy(imgPath,os.path.join(temp_dir, f'Pictures/{file_names[len(file_names)-int(num)-1]}'))
-            except IndexError:
-                print(f'You have only {len(file_names)} image/s in the doc. Index starts from 0')
-                
-        # Write the modified content back to content.xml
-        with open(content_path, 'w') as modified_file:
-            modified_file.write(content)
-            modified_file.close()
-        # Create a new ODT file with the modified content
-        with zipfile.ZipFile(out_path, 'w') as modified_odt:
-            # Add the modified content.xml back to the ODT
-            for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, temp_dir)
-                    modified_odt.write(file_path, arcname)
-
-        # print("Modified file saved as:", out_path)
-        # print(temp_dir)
-        shutil.rmtree(temp_dir)
-    
-    if tmpl_path.lower().endswith(".docx"):
-        # Create a temporary directory to extract the DOCX contents
-        temp_dir = tempfile.mkdtemp()
-
-        # Extract the ODT contents to the temporary directory
-        with zipfile.ZipFile(tmpl_path, 'r') as odt_file:
-            odt_file.extractall(temp_dir)
-        
-        content_path = os.path.join(temp_dir, 'word','header1.xml')
-        # Read the header.xml and footer.xml file for header and footer
-        if  os.path.isfile(content_path):
-            # header.xml
-            with open(content_path, 'r') as content_file:
-                content = content_file.read()
-                content_file.close()
-            
-            # regex pattern to find placeholder and replace with the value
-            for placeholder, value in data_dict.items(): 
-                content = re.sub(rf'&lt;{placeholder}&gt;', value, content)
-
-            # Write the modified content back to styles.xml
-            with open(content_path, 'w') as modified_file:
-                modified_file.write(content)
-                modified_file.close()
-
-            # footer.xml
-            content_path = os.path.join(temp_dir, 'word','footer1.xml')
-            with open(content_path, 'r') as content_file:
-                content = content_file.read()
-                content_file.close()
-            
-            # regex pattern to find placeholder and replace with the value
-            for placeholder, value in data_dict.items(): 
-                content = re.sub(rf'&lt;{placeholder}&gt;', value, content)
-
-            # Write the modified content back to styles.xml
-            with open(content_path, 'w') as modified_file:
-                modified_file.write(content)
-                modified_file.close()
-        
-        # Read the document.xml file
-        content_path = os.path.join(temp_dir, 'word', 'document.xml')
-        with open(content_path, 'r', encoding='utf-8') as content_file:
-            content = content_file.read()
-            content_file.close()
-        
-        # regex pattern to find placeholder and replace with the value
-        for placeholder, value in data_dict.items():
-            # dealing with adding multi line value to the variable in xml using heavy regex
-            # if False:
-            if '\n' in value:
-                values = value.split('\n')
-
-                main_search_string = f'&lt;{placeholder}&gt;'
-                
-                occurrences = re.finditer(rf'(<w:p>(?:(?!<w:p>).)*?)(<w:r>(?:(?!<w:r>).)*?)<w:t>[^<>]*?({main_search_string})', content)
-                
-
-                for count, occurrence in enumerate(occurrences):    
-                    # pretext to add new line
-                    # condition to check if placeholder is in bullet point then add new <w:p>
-                    if '<w:numPr><w:ilvl w:val="0"/>' in occurrence.group(1):   
-                        # This is just like pressing enter in docx
-                        # print('list found!')
-                        pretext = occurrence.group(1) + occurrence.group(2) + '<w:t>'
-                        posttext = '</w:t></w:r></w:p>'
-                    # if not bullet point then to keep the consistent style just do <w:br>
+                s.connect(('127.0.0.1', 9051))
+                s.sendall(b'AUTHENTICATE\r\n')
+                response = s.recv(1024)
+                if b'250 OK' in response:
+                    s.sendall(b'SIGNAL NEWNYM\r\n')
+                    response = s.recv(1024)
+                    if b'250 OK' in response:
+                        print('New Tor circuit established')
                     else:
-                        # This is just like pressing shift + enter in docx
-                        pretext = occurrence.group(2) + '<w:br w:type="textWrapping"/></w:r>' + occurrence.group(2) + '<w:t>'
-                        posttext = '</w:t></w:r>'
-                        
+                        print('Failed to establish new Tor circuit')
+                else:
+                    print('Failed to authenticate to Tor control port')
+            except Exception as e:
+                print(f'Failed to request newnym: {e}')
 
-                    data_multiline = ''
-                    for i, val in enumerate(values):
-                        if i == 0:
-                            data_multiline += f"{val}{posttext}"
-                        elif i == len(values) - 1:
-                            data_multiline += f'{pretext}{val}'
-                        else:
-                            data_multiline += f'{pretext}{val}{posttext}'
+    app = QApplication([])
+    password, ok = QInputDialog.getText(None, 'Password Input', 'Enter your sudo password:', echo=2)
+    if not ok:
+        password = ''
 
-                    content = re.sub(re.escape(occurrence.group(3)), data_multiline, content, count=count+1)
-
-            else:
-                content = re.sub(rf'&lt;{placeholder}&gt;', value, content)
-
-        # replace the placeholder images
-        if not img_dict == None:
-            img_dir = os.path.join(temp_dir,'word','media')
-            file_names = os.listdir(img_dir)
+    if Torstartme == "on":
+        service_was_running = check_tor_service(password)
+        if not service_was_running:
+            command = ["sudo", "-S", "service", "tor", "start"]
             try:
-                for num, imgPath in img_dict.items():
-                    shutil.copy(imgPath,os.path.join(img_dir, f'{file_names[int(num)]}'))
-                    print
-            except IndexError:
-                print(f'You have only {len(file_names)} image/s in the doc. Index starts from 0')
-                
-        # Write the modified content back to content.xml
-        with open(content_path, 'w') as modified_file:
-            modified_file.write(content)
-            modified_file.close()
-        # Create a new ODT file with the modified content
-        with zipfile.ZipFile(out_path, 'w') as modified_odt:
-            # Add the modified content.xml back to the ODT
-            for root, _, files in os.walk(temp_dir):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    arcname = os.path.relpath(file_path, temp_dir)
-                    modified_odt.write(file_path, arcname)
+                subprocess.run(command, input=password.encode(), check=True)
+                print("Tor service started.")
+                time.sleep(10)  # wait for 10 seconds
+            except subprocess.CalledProcessError as e:
+                print(f"Error starting Tor service: {e}")
+        check_tor_usage()
 
-        # print("Modified file saved as:", out_path)
-        # print(temp_dir)
-        shutil.rmtree(temp_dir)
+    elif Torstartme == "newnym":
+        if check_tor_service(password):
+            print("Tor service is running.")
+            request_newnym()
+            check_tor_usage()
+
+    elif Torstartme == "off":
+        command = ["sudo", "-S", "service", "tor", "stop"]
+        try:
+            subprocess.run(command, input=password.encode(), check=True)
+            print("Tor service stopped.")
+        except subprocess.CalledProcessError as e:
+            print(f"Error stopping Tor service: {e}")
+    else:
+        print("Invalid Torstartme command. No action taken.")
+	# Usage
+	# TTorstartme = "on"  # Set to "off" to stop Tor, "newnym" to request new identity
+	# TorCheck(Torstartme)
+
+
+
+
+
