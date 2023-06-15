@@ -23,6 +23,7 @@ import subprocess
 import sys
 import json
 import os
+import re
 from PyQt5.QtCore import QDateTime, QUrl, QThread, pyqtSignal, QCoreApplication
 from PyQt5.QtWebEngineCore import *
 from PyQt5.QtWebEngineWidgets import *
