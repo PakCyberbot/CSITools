@@ -554,9 +554,9 @@ def ChromedriverCheck(startme, additional_options=None):
 	
 
 def TorCheck(Torstartme):
-    def check_tor_service(password):
-        command = ["sudo", "-S", "service", "tor", "status"]
-        result = subprocess.run(command, input=password.encode(), capture_output=True)
+    def check_tor_service():
+        command = ["service", "tor", "status"]
+        result = subprocess.run(command, capture_output=True)
         output = result.stdout.decode().lower()
         # Check if service has exited
         if "active: active" not in output:
@@ -600,14 +600,15 @@ def TorCheck(Torstartme):
             except Exception as e:
                 print(f'Failed to request newnym: {e}')
 
-    app = QApplication([])
-    password, ok = QInputDialog.getText(None, 'Password Input', 'Enter your sudo password:', echo=2)
-    if not ok:
-        password = ''
 
     if Torstartme == "on":
-        service_was_running = check_tor_service(password)
+        service_was_running = check_tor_service()
         if not service_was_running:
+            app = QApplication([])
+            password, ok = QInputDialog.getText(None, 'Password Input', 'Enter your sudo password:', echo=2)
+            if not ok:
+                password = ''
+
             command = ["sudo", "-S", "service", "tor", "start"]
             try:
                 subprocess.run(command, input=password.encode(), check=True)
@@ -618,12 +619,17 @@ def TorCheck(Torstartme):
         check_tor_usage()
 
     elif Torstartme == "newnym":
-        if check_tor_service(password):
+        if check_tor_service():
             print("Tor service is running.")
             request_newnym()
             check_tor_usage()
 
     elif Torstartme == "off":
+        app = QApplication([])
+        password, ok = QInputDialog.getText(None, 'Password Input', 'Enter your sudo password:', echo=2)
+        if not ok:
+            password = ''
+
         command = ["sudo", "-S", "service", "tor", "stop"]
         try:
             subprocess.run(command, input=password.encode(), check=True)
@@ -635,6 +641,7 @@ def TorCheck(Torstartme):
 	# Usage
 	# TTorstartme = "on"  # Set to "off" to stop Tor, "newnym" to request new identity
 	# TorCheck(Torstartme)
+
 
 
 
