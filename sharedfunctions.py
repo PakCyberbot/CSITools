@@ -74,6 +74,43 @@ with open("agency_data.json", "r") as file:
     cases_folder = data.get("cases_folder")
     logo_path = os.path.join("Images", "agencylogo.png")
 
+def checkpass():
+    """
+Checks the availability of the sudo token. If the sudo token has expired, it prompts the user for their password (with a maximum of 3 attempts allowed) and returns the password. If the sudo token is still valid, it returns an empty string.
+
+Returns:
+str: The user's password if the sudo token has expired and the user provides a valid password within the allowed attempts, otherwise an empty string.
+
+"""
+    
+    password = ""
+
+    command = ["sudo", "-S", "-v"]    # just to check sudo password requires or not
+    requires_pass = subprocess.run(command,input=password.encode()).returncode  # checks without supplying password
+
+    no_of_attempts = 3
+    attempted = 0
+
+    app = QApplication([])
+    while requires_pass and attempted < no_of_attempts:    
+        attempt_output = f"Again (Attempt: {attempted+1})" if attempted > 0 else ""
+        password, ok = QInputDialog.getText(None, 'Password Input', f'Enter your sudo password {attempt_output}', echo=2)
+        if not ok:
+            password = ''
+        
+        command = ["sudo", "-S", "-v"] 
+        try:
+            subprocess.run(command, input=password.encode(), check=True)
+        except:
+            attempted += 1
+            continue
+
+        return password
+    
+    if not requires_pass:
+        return password
+
+    return "" # incase of failed attempts
 
 # subprocess.call(['pip', 'install', '-r', 'requirements.txt'])
 
