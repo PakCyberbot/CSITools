@@ -1,4 +1,4 @@
-PyQt5
+PySides2
 PyQtWebEngine
 wmi
 PyQt5-sip
