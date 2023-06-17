@@ -354,6 +354,16 @@ def csitoolsinit(case, csitoolname):
     global case_name, investigator_name, case_type, case_priority, case_classification, case_date, cases_folder, case_directory, timestamp, notes_file_path, icon
     icon = "CSI-Icon.ico"
     config_file = "agency_data.json"
+    if os.path.isfile(config_file):
+        with open(config_file, "r") as f:
+            config = json.load(f)
+            cases_folder = config.get("cases_folder")
+            print(cases_folder)
+            case_directory = os.path.join(cases_folder, case)
+            print(case_directory)
+    else:
+        case_directory = os.path.join(case)
+        print(case_directory)
 
     if not case:
         try:
@@ -366,47 +376,36 @@ def csitoolsinit(case, csitoolname):
     else:
         case_data_path = os.path.join(case_directory, "case_data.json")
         if not os.path.isfile(case_data_path):
-        cdata = {
-            "case_name": case,
-            "investigator_name": "CSI Linux",
-            "case_type": "Investigation",
-            "case_priority": "Informational",
-            "case_classification": "FOUO",
-            "case_date": QDateTime.currentDateTime().toString("yyyy-MM-dd")
-        }
-        case_directory = create_case_folder(case_name, cases_folder)
-        json_path = os.path.join(case_directory, "case_data.json")
-        with open(json_path, 'w') as f:
-            json.dump(cdata, f)
-        print(case_directory)
-
-        print(f"Path to cases_folder {cases_folder}")
-    print(case)
-    if os.path.isfile(config_file):
-        with open(config_file, "r") as f:
-            config = json.load(f)
-            cases_folder = config.get("cases_folder")
-            print(cases_folder)
+            cdata = {
+                "case_name": case,
+                "investigator_name": "CSI Linux",
+                "case_type": "Investigation",
+                "case_priority": "Informational",
+                "case_classification": "FOUO",
+                "case_date": QDateTime.currentDateTime().toString("yyyy-MM-dd")
+            }
             case_directory = os.path.join(cases_folder, case)
-            print(case_directory)
-    else:
-        case_directory = os.path.join(case)
-        print(case_directory)
-
-    create_case_folder(case_directory)
-    print(case_directory)
-
-    # Load case_data.json
-    with open(f'{case_directory}/case_data.json', 'r') as f:
-        case_data = json.load(f)
-     # Store values as global variables
-    case_name = case_data['case_name']
-    investigator_name = case_data['investigator_name']
-    case_type = case_data['case_type']
-    case_priority = case_data['case_priority']
-    case_classification = case_data['case_classification']
-    case_date = case_data['case_date']
+            create_case_folder(case_directory)
+            json_path = os.path.join(case_directory, "case_data.json")
+            with open(json_path, 'w') as f:
+                json.dump(cdata, f)
+        # Load case_data.json
+        with open(f'{case_directory}/case_data.json', 'r') as f:
+            case_data = json.load(f)
+            # Store values as global variables
+            case_name = case_data['case_name']
+            investigator_name = case_data['investigator_name']
+            case_type = case_data['case_type']
+            case_priority = case_data['case_priority']
+            case_classification = case_data['case_classification']
+            case_date = case_data['case_date']   
+            case_directory = os.path.join(cases_folder, case)
+            create_case_folder(case_directory)    
+        print(f"Path to cases_folder {cases_folder}")
     
+    print(case)
+    print(case_directory)
+  
     # Test: Print the values of the global variables
     print("case_name =", case_name)
     print("investigator_name =", investigator_name)
@@ -416,8 +415,6 @@ def csitoolsinit(case, csitoolname):
     print("case_date =", case_date)
 
     # Set up common variables used in CSI apps
-    case_directory = os.path.join(cases_folder, case)
-    create_case_folder(case_directory)
     timestamp = get_current_timestamp()
     auditme(case_directory, f"Opening {csitoolname}")
     notes_file_path = os.path.join(case_directory, "notes.txt")
@@ -425,6 +422,8 @@ def csitoolsinit(case, csitoolname):
     
     #
     return case_name, investigator_name, case_type, case_priority, case_classification, case_date, cases_folder, case_directory, timestamp, notes_file_path, icon
+
+
 def get_current_timestamp(timestamp=None):
     if timestamp is None:
         timestamp = QDateTime.currentDateTime().toString('yyyy-MM-dd:hh:mm:ss.zzz')
