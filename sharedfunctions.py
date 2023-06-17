@@ -350,11 +350,6 @@ class ChromeThread(QThread):
             print(f"Failed to download file from {url}. Error: {e}")
 
 
-
-
-
-
-
 def csitoolsinit(case, csitoolname):
     global case_name, investigator_name, case_type, case_priority, case_classification, case_date, cases_folder, case_directory, timestamp, notes_file_path, icon
     icon = "CSI-Icon.ico"
@@ -369,6 +364,22 @@ def csitoolsinit(case, csitoolname):
             print("Error:", e)
             sys.exit()
     else:
+        case_data_path = os.path.join(case_directory, "case_data.json")
+        if not os.path.isfile(case_data_path):
+        cdata = {
+            "case_name": case,
+            "investigator_name": "CSI Linux",
+            "case_type": "Investigation",
+            "case_priority": "Informational",
+            "case_classification": "FOUO",
+            "case_date": QDateTime.currentDateTime().toString("yyyy-MM-dd")
+        }
+        case_directory = create_case_folder(case_name, cases_folder)
+        json_path = os.path.join(case_directory, "case_data.json")
+        with open(json_path, 'w') as f:
+            json.dump(cdata, f)
+        print(case_directory)
+
         print(f"Path to cases_folder {cases_folder}")
     print(case)
     if os.path.isfile(config_file):
@@ -414,8 +425,6 @@ def csitoolsinit(case, csitoolname):
     
     #
     return case_name, investigator_name, case_type, case_priority, case_classification, case_date, cases_folder, case_directory, timestamp, notes_file_path, icon
-
-
 def get_current_timestamp(timestamp=None):
     if timestamp is None:
         timestamp = QDateTime.currentDateTime().toString('yyyy-MM-dd:hh:mm:ss.zzz')
