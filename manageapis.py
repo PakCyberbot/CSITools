@@ -11,72 +11,15 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-# from sharedfunctions import encrypt, decrypt, genKey, csitools_dir
+from sharedfunctions import encrypt, decrypt, genKey, api_json_path, api_enc_path
 import qdarktheme
 
 # Global var and function ###########
 enc_key=''
 title_icon="CSI_logo.ico"
-csitools_dir='/opt/csitools/'
 # You can add new tools_support and write their implementation in the Ui_MainWindow.save_api_data &  Ui_MainWindow.wipe_data 
 tools_support=["OSINT-Search", "Recon-NG", "Spiderfoot", "theHarvester", "CSI UserSearch"]
 
-
-#------------------------- APIKeys encryption methods --------------------------------------------#
-
-def genKey(password=0):     # generate key for Fernet() using password.
-    # genKey doesn't stores key for a better security, generates it at runtime.   
-    if password == 0:
-        password = input("Enter Password: ").encode()
-    else:
-        password = password.encode()
-    salt=b"Just4FillingTheRequirementOfPBKDF2HMAC"  
-    kdf = PBKDF2HMAC(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        iterations=480000
-    )
-    derived=kdf.derive(password)
-    key = base64.urlsafe_b64encode(derived)
-    return key
-    
-def encrypt(key):
-    f = Fernet(key)
-
-    # encrypting APIKeys.json
-    with open(f'{csitools_dir}APIKeys.json', 'rb') as plain_file:
-        plain_data = plain_file.read()
-    
-    encrypted_data = f.encrypt(plain_data)
-
-    with open(f'{csitools_dir}APIKeys.enc', 'wb') as encrypted_file:
-        encrypted_file.write(encrypted_data)
-
-    # Removing plaintext data file
-    os.remove(f'{csitools_dir}APIKeys.json')
-    
-    return True
-
-def decrypt(key):
-    f = Fernet(key)
-
-    try:
-        # Decrypting APIKeys.enc
-        with open(f'{csitools_dir}APIKeys.enc', 'rb') as encrypted_file:
-            encrypted_data = encrypted_file.read()
-        
-        plain_data = f.decrypt(encrypted_data)
-
-        with open(f'{csitools_dir}APIKeys.json', 'wb') as plain_file:
-            plain_file.write(plain_data)
-    
-        return True
-    
-    except InvalidToken:
-        print("Invalid Password to Decrypt")
-        return False
-#---------------------
 
 def show_message_box(title, message, icon=QMessageBox.Information, buttons=QMessageBox.Ok):
     
@@ -277,7 +220,7 @@ class Ui_MainWindow(object):
         self.APIData.setObjectName("APIData")
         
         decrypt(enc_key)
-        with open(f"{csitools_dir}APIKeys.json") as api_file:
+        with open(api_json_path,"r") as api_file:
             api_keys = json.load(api_file)
         encrypt(enc_key)
 
@@ -369,7 +312,7 @@ class Ui_MainWindow(object):
 
         update_api_keys = {item[0]: {"key":item[1],"inTools":item[2]} for item in self.api_keys_list}
         decrypt(enc_key)
-        with open(f"{csitools_dir}APIKeys.json","w") as api_file:
+        with open(api_json_path,"w") as api_file:
             json.dump(update_api_keys,api_file)
         encrypt(enc_key)
         
@@ -400,7 +343,7 @@ class Ui_MainWindow(object):
         if result == QMessageBox.Yes:
             empty_api_keys = {item[0]: {"key":'',"inTools":item[2]} for item in self.api_keys_list}
             decrypt(enc_key)
-            with open(f"{csitools_dir}APIKeys.json","w") as api_file:
+            with open(api_json_path,"w") as api_file:
                 json.dump(empty_api_keys,api_file)
             encrypt(enc_key)
             try:
@@ -456,7 +399,7 @@ if __name__ == "__main__":
     MainWindow.setGeometry(550,100,790, 900)    # approx center location
 
     # Creating encrypted APIKeys by setting up new password
-    if os.path.isfile(f"{csitools_dir}APIKeys.json"):
+    if os.path.isfile(api_json_path):
         new_password, ok = QInputDialog.getText(MainWindow, "Set New Password", "Enter a New Password:", QLineEdit.Password)
         if ok:
             confirm_password, ok = QInputDialog.getText(MainWindow, "Set New Password", "ReEnter the Password:", QLineEdit.Password)

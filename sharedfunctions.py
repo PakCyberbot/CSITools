@@ -65,17 +65,54 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+#---- dynamically generates absolute path for different platforms having different usernames
+def pathMe():
+    """
+    check the OS first then returns the csitools directory and cases directory
+    """
+    
+    if platform.platform().startswith("Linux"):
+        # takes the username if it's not root otherwise takes the user that is in sudo group
+        user_name = os.environ['USER'] if os.environ['USER'] != 'root' else subprocess.check_output(['awk', 'BEGIN {FS=":"} {if ($1 == "sudo") print $NF}', '/etc/group']).decode().removesuffix('\n') 
+        
+        case_dir = f"/home/{user_name}/Cases"
+        csitools_dir = "/opt/csitools" 
+        
+        return (csitools_dir, case_dir)
+    
+    elif platform.platform().startswith("Windows"):
+        user_name = os.environ['USERNAME']
+        
+        case_dir = f"C:/Users/{user_name}/Cases"
+        # permissions issues on it
+        # architecture = ' (x86)' if platform.architecture()[0] == '32bit' else '' 
+        # csitools_dir = f"C:/Program Files{architecture}/csitools"
+        csitools_dir = f"C:/Users/{user_name}/AppData/Local/csitools"
+        
+        return (csitools_dir, case_dir)
+    
+    elif platform.platform().startswith("Mac"):
+        pass
+
+
 if not os.path.exists("agency_data.json"):
     try:
-        subprocess.run(["python", "Agency.Wizard.py"])
+        subprocess.run(["python", "Agency_Wizard.py"])
     except Exception as e:
         print(f"An error occurred: {str(e)}")
         sys.exit()
 
 with open("agency_data.json", "r") as file:
     data = json.load(file)
-    cases_folder = data.get("cases_folder")
-    logo_path = os.path.join("Images", "agencylogo.png")
+    if data.get("cases_folder") == '':  # by default agency_data.json shouldn't have any folder so that it can generate according to platform
+        _, cases_folder = pathMe()
+        data["cases_folder"] = cases_folder
+        with open("agency_data.json","w") as json_file:
+            json.dump(data, json_file)
+    else:
+        cases_folder = data.get("cases_folder")
+
+logo_path = os.path.join("Images", "agencylogo.png")
 
 def checkpass():
     """
@@ -212,7 +249,7 @@ class ChromeThread(QThread):
         driver.get(self.url)
 
         timestamp = get_current_timestamp()
-        auditme(self.evidence_dir, f"{timestamp}: Opening {self.url} in Chrome")
+        auditme(self.evidence_dir, f"Opening {self.url} in Chrome")
 
         # Save history
         history_path = os.path.join(self.evidence_dir, "history.txt")
@@ -371,7 +408,7 @@ def csitoolsinit(case, csitoolname):
     case_directory = os.path.join(cases_folder, case)
     create_case_folder(case_directory)
     timestamp = get_current_timestamp()
-    auditme(case_directory, f"{timestamp}: Opening {csitoolname}")
+    auditme(case_directory, f"Opening {csitoolname}")
     notes_file_path = os.path.join(case_directory, "notes.txt")
     evidence_dir = os.path.join(case_directory, f"Evidence")    # Change "Folder" to the appropriate evidence sub-folder
     
@@ -395,43 +432,25 @@ def auditme(case_directory, message):
 
     # Now it's safe to open the file
     with open(audit_log_path, 'a+') as f:
-        f.write(get_current_timestamp() + message + "\n")
+        f.write(get_current_timestamp() +":\t"+ message + "\n")
+
+def generateCaseStructure(case_directory):
     
+    with open("shared.json", "r") as file:
+        case_folder_structure = json.load(file).get("Case-Structure")
+    for subdirectory in case_folder_structure:
+        directory_path = os.path.join(case_directory, subdirectory)
+        if not os.path.exists(directory_path):
+            os.mkdir(directory_path)
     
+    auditme(case_directory,"Generating Case Folder Structure")
+
 def create_case_folder(case_directory):
     timestamp = get_current_timestamp()
     if not os.path.exists(case_directory):
         os.makedirs(case_directory)
 
-    subdirectories = [
-        "Crime Scene Photos",
-        "Supporting Documents",
-        "Supporting Documents/Evidence Intake",
-        "Evidence",
-        "Evidence/Graphics",
-        "Evidence/Video",
-        "Evidence/Forensic Images",
-        "Evidence/Virtual Machines",
-        "Evidence/RAM",
-        "Evidence/Network",
-        "Evidence/Logs",
-        "Evidence/Triage",
-        "Evidence/Online",
-        "Evidence/Online/Cryptocurrency",
-        "Evidence/Online/DarkWeb",
-        "Evidence/Online/DarkWeb/OnionShare",
-        "Evidence/Online/Domains",
-        "Evidence/Online/Social Media", 
-        "Report",
-        "Tools",
-        "Tools/Hunchly",
-        "Tools/Autopsy"
-    ]
-
-    for subdirectory in subdirectories:
-        directory_path = os.path.join(case_directory, subdirectory)
-        if not os.path.exists(directory_path):
-            os.mkdir(directory_path)
+    generateCaseStructure(case_directory)
 
     audit_log_path = os.path.join(case_directory, "audit.log")
     if not os.path.isfile(audit_log_path):
@@ -447,55 +466,15 @@ def create_case_folder(case_directory):
     if not os.path.isfile(notes_file_path):
         with open(notes_file_path, 'a+') as f:
             f.write("Case notes for Digital Forensics Investigation:\n" + get_current_timestamp() + "\n\n")
-    
-    with open(audit_log_path, 'a') as f:
-        f.write(get_current_timestamp() + " Verifying case folder structure.\n")
-    
-
-
-    with open(audit_log_path, 'a') as f:
-        f.write(get_current_timestamp() + " Verifying case folder structure.\n")
         
     return case_directory
     
 
-def get_random_browser_header():
-
-    browser_headers = [
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.37",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 OPR/77.0.4054.277",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.41",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.77 Safari/537.36 Edg/91.0.864.48",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 OPR/77.0.4054.277",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.62",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:92.0) Gecko/20100101 Firefox/92.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.62",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 OPR/77.0.4054.277",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.37",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 OPR/77.0.4054.277",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.41",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36 Edg/91.0.864.48",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.107 Safari/537.36 Edg/92.0.902.62",
-    ]
-    random_header = random.choice(browser_headers)
+def getRandomUserAgent():
+    with open("shared.json", "r") as file:
+        user_agents = json.load(file).get("User-Agents")
+    
+    random_header = random.choice(user_agents)
     return {'User-Agent': random_header}
     
     # Feel free to add or modify the browser headers as needed.
@@ -647,7 +626,7 @@ def TorCheck(Torstartme):
 	# TorCheck(Torstartme)
 
 #------------------------- APIKeys encryption methods --------------------------------------------#
-csitools_dir='/opt/csitools/'
+csitools_dir, _=pathMe()
 
 def genKey(password=0):     # generate key for Fernet() using password.
     # genKey doesn't stores key for a better security, generates it at runtime.   
@@ -665,21 +644,24 @@ def genKey(password=0):     # generate key for Fernet() using password.
     derived=kdf.derive(password)
     key = base64.urlsafe_b64encode(derived)
     return key
-    
+
+api_json_path = os.path.join(csitools_dir, "APIKeys.json")
+api_enc_path = os.path.join(csitools_dir, "APIKeys.enc")
+
 def encrypt(key):
     f = Fernet(key)
 
     # encrypting APIKeys.json
-    with open(f'{csitools_dir}APIKeys.json', 'rb') as plain_file:
+    with open(api_json_path, 'rb') as plain_file:
         plain_data = plain_file.read()
     
     encrypted_data = f.encrypt(plain_data)
 
-    with open(f'{csitools_dir}APIKeys.enc', 'wb') as encrypted_file:
+    with open(api_enc_path, 'wb') as encrypted_file:
         encrypted_file.write(encrypted_data)
 
     # Removing plaintext data file
-    os.remove(f'{csitools_dir}APIKeys.json')
+    os.remove(api_json_path)
     
     return True
 
@@ -688,12 +670,12 @@ def decrypt(key):
 
     try:
         # Decrypting APIKeys.enc
-        with open(f'{csitools_dir}APIKeys.enc', 'rb') as encrypted_file:
+        with open(api_enc_path, 'rb') as encrypted_file:
             encrypted_data = encrypted_file.read()
         
         plain_data = f.decrypt(encrypted_data)
 
-        with open(f'{csitools_dir}APIKeys.json', 'wb') as plain_file:
+        with open(api_json_path, 'wb') as plain_file:
             plain_file.write(plain_data)
     
         return True
@@ -954,7 +936,7 @@ def generate_md5(file_path):
 def closeCase(case):
     """
     Creates a zip file of the specified case folder, including all subfolders containing files.
-Additionally, it generates an MD5 hash for each file and stores them in a file named "<zip_file_name>.zip.md5".
+Additionally, it generates an MD5 hash for each file and stores them in a file named "<zip_file_name>.md5 and archived in the zip file too".
     Naming format
     zip_file_name = <case_name>-<YYYYmmdd>-<HHMM>
     
@@ -965,16 +947,22 @@ Additionally, it generates an MD5 hash for each file and stores them in a file n
 	None
     """
     
+    # Create a temporary directory to store md5 hashes file
+    temp_dir = tempfile.mkdtemp()
+
     case_dir_path = os.path.join(cases_folder,case)
     file_time = time.strftime("%Y%m%d-%H%M")    #time format: YYYYmmdd-HHMM
+
+    md5_temp_path = os.path.join(temp_dir,f"{case}-{file_time}.md5")
     archive_path = os.path.join(cases_folder,'Archive',f"{case}-{file_time}.zip")
 
     # generating hash of every directory
-    with open(f"{archive_path}.md5",'w') as archive_file:
+    with open(md5_temp_path,'w') as hash_file:
         for root, dirs, files in os.walk(case_dir_path):
             for f in files:
                 file_path = os.path.join(root,f)
-                archive_file.write(f"{generate_md5(file_path)} {file_path.replace(case_dir_path,'.')}\n")
+                hash_file.write(f"{generate_md5(file_path)} {file_path.replace(case_dir_path,'.')}\n")
+        hash_file.close()
 
     # creates zip file of case folder
     with zipfile.ZipFile(archive_path, 'w') as case_zip:
@@ -984,6 +972,13 @@ Additionally, it generates an MD5 hash for each file and stores them in a file n
                 file_path = os.path.join(root, file)
                 arcname = os.path.relpath(file_path, case_dir_path)
                 case_zip.write(file_path, arcname)
+        # storing md5 file in zip too
+        arcname = os.path.relpath(md5_temp_path, temp_dir)
+        case_zip.write(md5_temp_path,arcname)
+        case_zip.close()
+
+    shutil.rmtree(temp_dir)
+    
 
 def archiveCase(case):
     """
@@ -995,3 +990,87 @@ def archiveCase(case):
     case_dir_path = os.path.join(cases_folder,case)
     shutil.rmtree(case_dir_path)
 	
+def arcIntegrityCheck(archive_path):
+    """
+    checks the integrity of the given archive file with the absolute path by comparing it with the md5 file located inside the zip archive
+    
+    args: archive path
+    return: tuple ( archive_name , md5_name , list [ altered_files ] )
+    """
+    # Create a temporary directory to have integrity checks.
+    temp_dir = tempfile.mkdtemp()
+
+    # Extract the ODT contents to the temporary directory
+    with zipfile.ZipFile(archive_path, 'r') as arc_file:
+        arc_file.extractall(temp_dir)
+    
+    #extracting only name from zip to have md5 file name
+    archive_file, _ = os.path.splitext(os.path.basename(archive_path))
+    
+    #getting md5 file name
+    for f in os.listdir(temp_dir):
+        if re.search(r'.*\.md5$',f):
+            md5_file = f
+            print(md5_file)
+            break
+    
+    md5_hash_path = os.path.join(temp_dir, md5_file)
+
+    altered_files = []
+    with open(md5_hash_path,'r') as hash_file:
+        for root, _, files in os.walk(temp_dir):
+            for f in files:
+                if f != md5_file:  # present in the same directory
+                    file_path = os.path.join(root,f)
+                    md5hash = hash_file.readline()
+                    if md5hash.startswith(generate_md5(file_path)):
+                        print(f"{f} file hash verified!")
+                    else:
+                        print(f"{f} file failed the integrity check")
+                        altered_files.append(os.path.relpath(os.path.join(root,f),temp_dir))    # relative path to the file with respect to zip
+    
+    shutil.rmtree(temp_dir)
+    return (archive_file, md5_file, altered_files)
+
+def importCase(archive_path):
+    """
+    Creates a case folder by importing the archive content, if case folder exists then creates with the prefix number to avoid overriding the current case folder
+    
+    args: archive_path 
+    """
+    arc_name, md5_name, altered_files = arcIntegrityCheck(archive_path)
+    
+    casename = md5_name.split('-')[0]
+
+    case_dir_path = os.path.join(cases_folder,casename)
+    
+    # Create a temporary directory to extract only approved file in the case folder.
+    temp_dir = tempfile.mkdtemp()
+    
+    with zipfile.ZipFile(archive_path, 'r') as arc_file:
+        arc_file.extractall(temp_dir)
+
+    # to add numbering if there are multiple cases in the folder to avoid overiding the case folder
+    count = 0
+    temp = case_dir_path
+    while os.path.isdir(case_dir_path if count == 0 else f"{case_dir_path}-{count}"):
+        count +=1
+    
+    case_dir_path = case_dir_path if count == 0 else f"{case_dir_path}-{count}"
+
+    with zipfile.ZipFile(archive_path, 'r') as arc_file:
+        for root, _, files in os.walk(temp_dir):
+            for f in files:
+                if f != md5_name:  # not extracts the md5 file.
+                    file_path_in_zip = os.path.relpath(os.path.join(root,f),temp_dir)
+                    if not file_path_in_zip in altered_files:
+                        arc_file.extract(file_path_in_zip, case_dir_path)
+    
+    for alt_file in altered_files:
+        auditme(case_dir_path, f"{alt_file} file FAILED the integrity check!")
+    
+    generateCaseStructure(case_dir_path)
+    
+    shutil.rmtree(temp_dir)
+
+    
