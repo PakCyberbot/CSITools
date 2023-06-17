@@ -57,6 +57,13 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
+from stem import Signal
+from stem.control import Controller
+import stem.process
+import stem
+import stem.control
+from stem.process import launch_tor_with_config
+
 import psutil
 
 # libs for encrypting APIKeys
@@ -542,8 +549,6 @@ def ChromedriverCheck(startme, additional_options=None, onion=False):
 
     return driver
     
-
-
 def TorCheck(Torstartme):
     def check_tor_service():
         command = ["service", "tor", "status"]
@@ -641,7 +646,7 @@ def TorCheck(Torstartme):
 	# TorCheck(Torstartme)
 	
 def WhatIsMyIP():
-    headers = { 'User-Agent': get_random_browser_header() }
+    headers = getRandomUserAgent()
     try:
         response = requests.get('https://check.torproject.org/', headers=headers)
         response.raise_for_status()  # Raise an exception if the request was unsuccessful
@@ -666,7 +671,7 @@ def WhatIsMyIP():
 
 
 def WhatIsMyTorIP():
-    headers = { 'User-Agent': get_random_browser_header() }
+    headers = getRandomUserAgent()
     proxies = {
         'http': 'socks5://127.0.0.1:9050',
         'https': 'socks5://127.0.0.1:9050'
@@ -699,7 +704,7 @@ def CSIIPLocation(ip_address, istor):
         "ip-api": f"http://ip-api.com/json/{ip_address}",
     }
 
-    headers = {'User-Agent': get_random_browser_header()}
+    headers = getRandomUserAgent()
 
     # Iterate over the APIs
     for api_name, url in api_urls.items():
