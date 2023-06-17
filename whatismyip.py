@@ -2,13 +2,12 @@ import os
 import sys
 import json
 import subprocess
-import threading
 from PySide2.QtCore import QThread, Signal, QUrl, Qt, QSize
 from PySide2.QtGui import QIcon, QPixmap
 from PySide2.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QStatusBar, QLabel, QPlainTextEdit, QScrollArea
 from PySide2.QtWebEngineWidgets import QWebEngineView
 from urllib.parse import quote_plus
-from sharedfunctions import auditme, get_current_timestamp, WhatIsMyIP, WhatIsMyTorIP, CSIIPLocation, TorCheck, CSI_TorVPN
+from sharedfunctions import auditme, get_current_timestamp, WhatIsMyIP, WhatIsMyTorIP, CSIIPLocation, TorCheck
 
 if not os.path.exists("agency_data.json"):
     try:
