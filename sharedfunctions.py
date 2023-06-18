@@ -227,6 +227,69 @@ class DragDropWidget(QWidget):
                 shutil.copytree(path, destination)
             message = audit_me(self.audit_file, f"Added  {path} to the Evidence Vault")
 
+from PySide2.QtCore import QUrl
+from PySide2.QtWidgets import QMainWindow, QToolBar, QLineEdit, QAction, QStatusBar, QApplication, QStyle
+from PySide2.QtWebEngineWidgets import QWebEngineView
+
+class BrowseMe(QMainWindow):
+    def __init__(self, app, url="http://google.com", evidence_dir=None, *args, **kwargs):
+        super(BrowseMe, self).__init__(*args, **kwargs)
+        self.browser = QWebEngineView()
+        self.browser.setUrl(QUrl(url))
+        self.browser.urlChanged.connect(self.update_urlbar)
+        self.browser.loadFinished.connect(self.update_title)
+        self.setCentralWidget(self.browser)
+        self.status = QStatusBar()
+        self.setStatusBar(self.status)
+        navtb = QToolBar("Navigation")
+        self.addToolBar(navtb)
+
+        back_btn = QAction(self.style().standardIcon(QStyle.SP_ArrowBack), "Back", self)
+        back_btn.triggered.connect(self.browser.back)
+        navtb.addAction(back_btn)
+
+        next_btn = QAction(self.style().standardIcon(QStyle.SP_ArrowForward), "Forward", self)
+        next_btn.triggered.connect(self.browser.forward)
+        navtb.addAction(next_btn)
+
+        reload_btn = QAction(self.style().standardIcon(QStyle.SP_BrowserReload), "Reload", self)
+        reload_btn.triggered.connect(self.browser.reload)
+        navtb.addAction(reload_btn)
+
+        home_btn = QAction(self.style().standardIcon(QStyle.SP_DialogOpenButton), "Home", self)
+        home_btn.triggered.connect(self.navigate_home)
+        navtb.addAction(home_btn)
+
+        navtb.addSeparator()
+
+        self.urlbar = QLineEdit()
+        self.urlbar.returnPressed.connect(self.navigate_to_url)
+        navtb.addWidget(self.urlbar)
+
+        stop_btn = QAction(self.style().standardIcon(QStyle.SP_BrowserStop), "Stop", self)
+        stop_btn.triggered.connect(self.browser.stop)
+        navtb.addAction(stop_btn)
+
+        self.show()
+
+    def update_title(self):
+        title = self.browser.page().title()
+        self.setWindowTitle("% s - CSI Browser" % title)
+
+    def navigate_home(self):
+        self.browser.setUrl(QUrl("http://www.google.com"))
+
+    def navigate_to_url(self):
+        q = QUrl(self.urlbar.text())
+        if q.scheme() == "":
+            q.setScheme("http")
+        self.browser.setUrl(q)
+
+    def update_urlbar(self, q):
+        self.urlbar.setText(q.toString())
+        self.urlbar.setCursorPosition(0)
+
+
 class ChromeThread(QThread):
     finished = pyqtSignal()
     
