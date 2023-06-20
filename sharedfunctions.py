@@ -228,16 +228,27 @@ class DragDropWidget(QWidget):
             message = audit_me(self.audit_file, f"Added  {path} to the Evidence Vault")
 
 from PySide2.QtCore import QUrl
+from PySide2.QtGui import QScreen
+from PySide2.QtWidgets import QFileDialog
 from PySide2.QtWidgets import QMainWindow, QToolBar, QLineEdit, QAction, QStatusBar, QApplication, QStyle
 from PySide2.QtWebEngineWidgets import QWebEngineView
+from urllib.parse import urlparse
+from datetime import datetime
+import os
+
 
 class BrowseMe(QMainWindow):
-    def __init__(self, app, url="http://google.com", evidence_dir=None, *args, **kwargs):
+    def __init__(self, app, url="http://google.com", edir="Cases", *args, **kwargs):
         super(BrowseMe, self).__init__(*args, **kwargs)
+        self.resize(1366, 768)  # Set the window size
+        self.center_window()
+        self.edir = edir
         self.browser = QWebEngineView()
         self.browser.setUrl(QUrl(url))
         self.browser.urlChanged.connect(self.update_urlbar)
         self.browser.loadFinished.connect(self.update_title)
+
+
         self.setCentralWidget(self.browser)
         self.status = QStatusBar()
         self.setStatusBar(self.status)
@@ -270,7 +281,23 @@ class BrowseMe(QMainWindow):
         stop_btn.triggered.connect(self.browser.stop)
         navtb.addAction(stop_btn)
 
+        mark_btn = QAction("Mark", self)
+        mark_btn.triggered.connect(self.mark_page)
+        navtb.addAction(mark_btn)
+
         self.show()
+
+    def center_window(self):
+        # Get the screen's geometry
+        screen_geometry = QApplication.desktop().screenGeometry()
+
+        # Calculate the window's position
+        x = (screen_geometry.width() - self.width()) // 2
+        y = (screen_geometry.height() - self.height()) // 2
+
+        # Move the window to the calculated position
+        self.move(x, y)
+
 
     def update_title(self):
         title = self.browser.page().title()
@@ -289,6 +316,39 @@ class BrowseMe(QMainWindow):
         self.urlbar.setText(q.toString())
         self.urlbar.setCursorPosition(0)
 
+    def mark_page(self):
+        # grab the current page as QPixmap
+        screenshot = self.browser.grab()
+    
+        # parse the current url
+        parsed_url = urlparse(self.browser.url().toString())
+        
+        # get the domain and the page name
+        domain = parsed_url.netloc
+        page_name = parsed_url.path
+    
+        # if the page name is just a slash, name it "home"
+        if page_name == '/':
+            page_name = 'home'    
+    
+        # replace slashes in the page name with hyphens
+        page_name = page_name.replace('/', '-')
+        
+        # get the current timestamp
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        
+        # construct the save path
+        filename = "{}-{}-{}.png".format(domain, page_name, timestamp)
+        directory_path = os.path.join(self.edir, domain)
+        save_path = os.path.join(directory_path, filename)
+        if not os.path.exists(directory_path):
+            os.mkdir(directory_path)
+                
+        # save the screenshot
+        screenshot.save(save_path)
+        
+        with open(f"{save_path}.md5", "w") as f:
+            f.write(generate_md5(save_path))
 
 class ChromeThread(QThread):
     finished = pyqtSignal()
