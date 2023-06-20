@@ -238,11 +238,11 @@ import os
 
 
 class BrowseMe(QMainWindow):
-    def __init__(self, app, url="http://google.com", edir="Cases", *args, **kwargs):
+    def __init__(self, app, evidence_dir, url="http://google.com", *args, **kwargs):
         super(BrowseMe, self).__init__(*args, **kwargs)
         self.resize(1366, 768)  # Set the window size
         self.center_window()
-        self.edir = edir
+        self.edir = evidence_dir
         self.browser = QWebEngineView()
         self.browser.setUrl(QUrl(url))
         self.browser.urlChanged.connect(self.update_urlbar)
@@ -349,6 +349,7 @@ class BrowseMe(QMainWindow):
         
         with open(f"{save_path}.md5", "w") as f:
             f.write(generate_md5(save_path))
+
 
 class ChromeThread(QThread):
     finished = pyqtSignal()
