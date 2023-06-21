@@ -1,7 +1,7 @@
 import sys, argparse, os, subprocess, json, shutil, platform, wmi, psutil, time
-from PyQt5.QtWidgets import QApplication, QWidget, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QPlainTextEdit, QStatusBar, QInputDialog, QWizard, QWizardPage, QLineEdit, QFormLayout, QDialog, QSizePolicy, QProgressDialog
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFocusEvent, QIcon
+from PySide2.QtWidgets import QApplication, QWidget, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QPlainTextEdit, QStatusBar, QInputDialog, QWizard, QWizardPage, QLineEdit, QFormLayout, QDialog, QSizePolicy, QProgressDialog
+from PySide2.QtCore import Qt
+from PySide2.QtGui import QFocusEvent, QIcon
 import sharedfunctions
 import ctypes, win32api
 myappid = 'mycompany.myproduct.subproduct.version'

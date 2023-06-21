@@ -27,18 +27,18 @@ import os
 import random
 import socket
 import getpass
-from PyQt5.QtCore import QDateTime, QUrl, QThread, pyqtSignal, QCoreApplication
-from PyQt5.QtWebEngineCore import *
-from PyQt5.QtWebEngineWidgets import *
+from PySide2.QtCore import QDateTime, QUrl, QThread, Signal as pyqtSignal , QCoreApplication
+from PySide2.QtWebEngineCore import *
+from PySide2.QtWebEngineWidgets import *
 from urllib.parse import urlparse
-from PyQt5.QtGui import *
+from PySide2.QtGui import *
 
-from PyQt5.QtWidgets import (
+from PySide2.QtWidgets import (
     QApplication, QWidget, QFileDialog, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
     QPlainTextEdit, QStatusBar, QInputDialog, QWizard, QWizardPage, QLineEdit, QFormLayout,
     QDialog, QSizePolicy
 )
-from PyQt5.QtCore import Qt
+from PySide2.QtCore import Qt
 
 from datetime import datetime
 
@@ -72,8 +72,22 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
+# if you are packing up any read-only resources with your py script using pyinstaller then you can simply add
+# all you resources with py script 
+
+def pathMe(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+        relative_path = os.path.basename(relative_path)
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 #---- dynamically generates absolute path for different platforms having different usernames
-def pathMe():
+def csiPath():
     """
     check the OS first then returns the csitools directory and cases directory
     """
@@ -112,7 +126,7 @@ if not os.path.exists("agency_data.json"):
 with open("agency_data.json", "r") as file:
     data = json.load(file)
     if data.get("cases_folder") == '':  # by default agency_data.json shouldn't have any folder so that it can generate according to platform
-        _, cases_folder = pathMe()
+        _, cases_folder = csiPath()
         data["cases_folder"] = cases_folder
         with open("agency_data.json","w") as json_file:
             json.dump(data, json_file)
@@ -862,7 +876,7 @@ def CSIIPLocation(ip_address, istor):
     return None
 
 #------------------------- APIKeys encryption methods --------------------------------------------#
-csitools_dir, _=pathMe()
+csitools_dir, _=csiPath()
 
 def genKey(password=0):     # generate key for Fernet() using password.
     # genKey doesn't stores key for a better security, generates it at runtime.   

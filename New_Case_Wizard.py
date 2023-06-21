@@ -1,8 +1,8 @@
 import sys
 import os
 import shutil
-from PyQt5.QtWidgets import QApplication, QWizard, QFileDialog
-from PyQt5 import QtCore, QtGui, QtWidgets
+from PySide2.QtWidgets import QApplication, QWizard, QFileDialog
+from PySide2 import QtCore, QtGui, QtWidgets
 import json
 import sharedfunctions
 

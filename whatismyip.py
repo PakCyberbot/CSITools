@@ -2,12 +2,18 @@ import os
 import sys
 import json
 import subprocess
-from PySide2.QtCore import QThread, Signal, QUrl, Qt, QSize
+from PySide2.QtCore import QThread, Signal, QUrl, Qt, QSize, QRect, QMetaObject, QCoreApplication
 from PySide2.QtGui import QIcon, QPixmap
-from PySide2.QtWidgets import QApplication, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QStatusBar, QLabel, QPlainTextEdit, QScrollArea
+from PySide2.QtWidgets import (
+    QApplication, QDesktopWidget, QWidget, QMainWindow, QVBoxLayout, QHBoxLayout, 
+    QPushButton, QStatusBar, QLabel, QTextEdit, QPlainTextEdit, QLineEdit, QInputDialog,
+     QScrollArea, QDialog, QTabWidget, QAction, QMenuBar, QMenu, QCompleter,
+      QDockWidget, QRadioButton
+      )
 from PySide2.QtWebEngineWidgets import QWebEngineView
 from urllib.parse import quote_plus
 from sharedfunctions import auditme, get_current_timestamp, WhatIsMyIP, WhatIsMyTorIP, CSIIPLocation, TorCheck
+import qdarktheme
 
 if not os.path.exists("agency_data.json"):
     try:
@@ -34,6 +40,17 @@ if not os.path.isfile(notes_file_path):
 
 def format_dict_to_str(dict_obj):
     return '\n'.join([f'{k}: {v}' for k, v in dict_obj.items()])
+
+#---------------------------- For Relative Sizing(REQUIRED) -------------------------------#
+def percentSize(object, width_percentage=100, height_percentage=100):
+    # use 'app' to get desktop relative sizing, for others pass the object not string 
+    if type(object) == str and  object.lower().endswith('app'):
+        desktop_size = QApplication.desktop().availableGeometry()
+        object = desktop_size
+
+    width = int(object.width() * (width_percentage/100))
+    height = int(object.height() * (height_percentage/100))
+    return (width, height)
 
 
 class Worker(QThread):
@@ -71,6 +88,74 @@ class BaseCSIApplication(QApplication):
         super().__init__(*args, **kwargs)
 
 
+
+class CSIMainWindow(QMainWindow):
+    def __init__(self, case_directory, window_title, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.case_directory = case_directory
+        self.setWindowTitle(f"{window_title}")
+        self.setWindowIcon(QIcon(icon))
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.application = None
+
+        self.setGeometry(0,0, *percentSize("app",95,90))
+        self.center()
+
+        #-------------------------- MENU BAR --------------------------#
+        self.menubar = QMenuBar(self)
+        self.menubar.setGeometry(QRect(0, 0, *percentSize("app",95,10)))
+        self.menubar.setObjectName("menubar")
+        self.setMenuBar(self.menubar)
+        # menu list
+        self.menuList = QMenu(self.menubar)
+        self.menuList.setTitle("Menu")
+        
+        self.themeMenu = QMenu(self.menubar)
+        self.themeMenu.setTitle("Themes")
+        
+        # menu options within menu list
+        self.fullscreenOption = QAction(self)
+        self.fullscreenOption.setShortcut("Ctrl+F")
+        self.fullscreenOption.setText("FullScreen Toggle")
+        self.fullscreenOption.setStatusTip("Click to move to and from FullScreen")
+    
+        self.menuList.addAction(self.fullscreenOption)
+
+        self.menubar.addAction(self.menuList.menuAction())
+
+        self.darkTheme = QAction(self)
+        self.darkTheme.setText("Dark Theme")
+        self.darkTheme.setStatusTip("Enable Dark theme")
+        self.themeMenu.addAction(self.darkTheme)
+        self.lightTheme = QAction(self)
+        self.lightTheme.setText("Light Theme")
+        self.lightTheme.setStatusTip("Enable Light theme")
+        self.themeMenu.addAction(self.lightTheme)
+
+        self.menubar.addAction(self.themeMenu.menuAction())
+
+        self.darkTheme.triggered.connect(lambda: self.theme_change("dark"))
+        self.lightTheme.triggered.connect(lambda: self.theme_change("light"))
+        print("fullscreen",self.isFullScreen())
+        self.fullscreenOption.triggered.connect(lambda: self.showFullScreen() if not self.isFullScreen() else self.showNormal())
+
+    def theme_change(self, theme_color):
+        qdarktheme.setup_theme(theme_color)
+
+    def center(self):
+        qRect = self.frameGeometry()
+        center_point = QDesktopWidget().availableGeometry().center()
+        qRect.moveCenter(center_point)
+        self.move(qRect.topLeft())
+
+    def set_application(self, application):
+        self.application = application
+
+    def update_status(self, message):
+        self.status_bar.showMessage(message)
+
+
 class BaseCSIWidget(QWidget):
     def __init__(self, main_window, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -89,10 +174,21 @@ class BaseCSIWidget(QWidget):
         self.setWindowIcon(QIcon(icon))
 
         self.main_layout = QHBoxLayout()  # Use QHBoxLayout for controlled width layout
+        #----------------------------------- LEFT DOCK -------------------------------------#
+        self.leftDock = QDockWidget(main_window)
+        self.leftDock.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
+        self.leftDock.setFeatures(QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable)
+        self.leftDock.setWindowTitle(QCoreApplication.translate("MainWindow", u"Data Variables", None))
+        self.leftDock.setMinimumWidth(percentSize(main_window,20,0)[0])
+        self.leftDockContent = QWidget()
+        self.leftDockContent.setObjectName("leftDockContent")
+        self.leftDock.setWidget(self.leftDockContent)
+        main_window.addDockWidget(Qt.DockWidgetArea(1), self.leftDock)
 
-        self.cmd_widget = QWidget()  # Create a QWidget
+        # Command layout
+        self.cmd_widget = QWidget(self.leftDockContent)  # Create a QWidget
+        self.leftDock.resizeEvent = lambda event: self.adjust_size(self.cmd_widget, self.leftDock)
         self.cmd_layout = QVBoxLayout()  # Set QVBoxLayout
-        self.cmd_widget.setFixedWidth(300)  # Set fixed width on widget
         self.cmd_widget.setLayout(self.cmd_layout)  # Set layout to the widget
 
         scroll_area = QScrollArea()  # Create a scroll area widget
@@ -127,21 +223,27 @@ class BaseCSIWidget(QWidget):
         # End View Layout
 
         # Case Note layout
-        self.sl2_widget = QWidget()
+        #----------------------------------- RIGHT DOCK -------------------------------------#
+        self.rightDock = QDockWidget(main_window)
+        self.rightDock.setAllowedAreas(Qt.LeftDockWidgetArea|Qt.RightDockWidgetArea)
+        self.rightDock.setFeatures(QDockWidget.DockWidgetFloatable|QDockWidget.DockWidgetMovable)
+        self.rightDock.setWindowTitle(QCoreApplication.translate("main_window", u"Case Notes", None))
+        self.rightDock.setMinimumWidth(percentSize(main_window,15,0)[0])
+        self.rightDockContent = QWidget()
+        self.rightDockContent.setObjectName("rightDockContent")
+        self.rightDock.setWidget(self.rightDockContent)
+        main_window.addDockWidget(Qt.DockWidgetArea(2), self.rightDock)
+        
+        # Case Note layout
+        self.sl2_widget = QWidget(self.rightDockContent)
+        self.rightDock.resizeEvent = lambda event: self.adjust_size(self.sl2_widget,self.rightDock)
         self.sl2 = QVBoxLayout()
-        self.case_notes_label = QLabel("Case Notes")
-        self.case_notes_label.setAlignment(Qt.AlignCenter)
-        self.case_notes_label.setStyleSheet("font-weight: bold;")
-        self.sl2.addWidget(self.case_notes_label)
         self.case_notes_edit = QPlainTextEdit()
         self.sl2.addWidget(self.case_notes_edit)
-        self.sl2_widget.setFixedWidth(300)
         self.sl2_widget.setLayout(self.sl2)
 
         # Add the widgets to the main layout
-        self.main_layout.addWidget(self.cmd_widget)
         self.main_layout.addWidget(self.image_widget, 1)
-        self.main_layout.addWidget(self.sl2_widget)
 
         # Set the main layout as the widget's layout
         self.setLayout(self.main_layout)
@@ -169,12 +271,15 @@ class BaseCSIWidget(QWidget):
         self.sl2_button2.clicked.connect(self.start_csi_torvpn)
         self.sl2.addWidget(self.sl2_button2)
 
-        self.close_button = QPushButton()
+        self.close_button = QPushButton("Save & Close")
         self.close_button.setIcon(QIcon(QPixmap("Images/exit-csit.ico")))
         self.close_button.setIconSize(QSize(300, 35))
         self.close_button.setToolTip("Save and Close Tool.")
         self.close_button.clicked.connect(self.save_case_notes)
         self.sl2.addWidget(self.close_button)
+    
+    def adjust_size(self, widget, dock):
+        widget.resize(*percentSize(dock,100,95))
 
     def update_tor_ip_label(self, Torip, Toripinfo):
         # Store Toripinfo data with prefix
@@ -281,29 +386,13 @@ class BaseCSIWidget(QWidget):
         self.scroll_area2.horizontalScrollBar().setValue(scroll_content_offset2)
 
 
-class CSIMainWindow(QMainWindow):
-    def __init__(self, case_directory, window_title, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.case_directory = case_directory
-        self.setWindowTitle(f"{window_title}")
-        self.setWindowIcon(QIcon(icon))
-        self.status_bar = QStatusBar()
-        self.setStatusBar(self.status_bar)
-        self.application = None
-
-    def set_application(self, application):
-        self.application = application
-
-    def update_status(self, message):
-        self.status_bar.showMessage(message)
-
 
 if __name__ == "__main__":
     app = BaseCSIApplication([sys.argv[0], '--no-sandbox'])  # Corrected line
+    qdarktheme.setup_theme('dark')
     main_window = CSIMainWindow(case_directory, csitoolname)
     widget = BaseCSIWidget(main_window, main_window)  # Pass main_window as an argument
     main_window.setCentralWidget(widget)
-    main_window.setGeometry(100, 100, 1368, 768)
     main_window.set_application(app)
     main_window.show()
     sys.exit(app.exec_())
